@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>New tab</title>
+  <style>
+    :root { --accent: #ff5a36; }
+    html, body { height: 100%; margin: 0; background: #121316; color: #f2f0ec; font-family: "Segoe UI", sans-serif; }
+    body { display: flex; align-items: center; justify-content: center; }
+    main { width: min(560px, calc(100% - 48px)); }
+    h1 { font-weight: 600; font-size: 32px; letter-spacing: -0.045em; margin: 0 0 18px; }
+    h1 span { color: var(--accent); }
+    form { display: flex; background: #1c1e24; border: 1px solid #2c2f36; border-radius: 12px; overflow: hidden; }
+    form:focus-within { border-color: var(--accent); }
+    input { flex: 1; min-width: 0; background: transparent; border: 0; color: inherit; font: inherit; font-size: 15px; padding: 14px 16px; outline: none; }
+    button { background: var(--accent); color: #1a0d09; border: 0; padding: 0 18px; font-weight: 650; font: inherit; cursor: pointer; }
+    p { color: #8d8a84; font-size: 12px; margin: 14px 0 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Co<span>ve</span></h1>
+    <form id="f">
+      <input id="q" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false" />
+      <button type="submit">Go</button>
+    </form>
+    <p>Search stays on Google. Nothing here phones home.</p>
+  </main>
+  <script>
+    const accent = new URLSearchParams(location.search).get("accent");
+    if (accent) document.documentElement.style.setProperty("--accent", "#" + accent.replace("#", ""));
+    const q = document.getElementById("q");
+    q.focus();
+    document.getElementById("f").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const query = q.value.trim();
+      if (!query || !window.chrome?.webview) return;
+      chrome.webview.postMessage({ kind: "search", query });
+    });
+  </script>
+</body>
+</html>
