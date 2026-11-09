@@ -34,6 +34,9 @@ sealed class TabVm : NotifyObject
     public PageSession Page { get; }
     public long LastActive { get; set; }
     public DateTimeOffset Seen { get; set; }
+    public bool PluginsReady { get; set; }
+    public bool PluginInjecting { get; set; }
+    public bool PluginInjectAgain { get; set; }
     public string PageHost { get; set; } = "";
 
     public string Title { get => _title; set => Set(ref _title, string.IsNullOrWhiteSpace(value) ? "New tab" : value); }
@@ -124,6 +127,7 @@ sealed class AppState
     public List<HistoryEntry> History { get; set; } = [];
     public List<DownloadRecord> Downloads { get; set; } = [];
     public List<string> ExtensionPaths { get; set; } = [];
+    public List<PluginState> Plugins { get; set; } = [];
 }
 
 sealed class WorkspaceState
@@ -154,6 +158,13 @@ sealed class HistoryEntry
     public string Title { get; set; } = "";
     public string Url { get; set; } = "";
     public DateTimeOffset Visited { get; set; }
+}
+
+sealed class PluginState
+{
+    public string Id { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+    public Dictionary<string, string> Settings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 sealed class DownloadRecord

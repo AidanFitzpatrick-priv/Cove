@@ -21,6 +21,7 @@ typedef struct CovePageCallbacks {
 
 @class CovePageBox;
 static NSString *PagesDir;
+static NSString *PluginsDir;
 static BOOL ForceDarkPages = NO;
 static NSHashTable *LivePages;
 static const void *CoveDownloadKey = &CoveDownloadKey;
@@ -239,10 +240,35 @@ static NSWindow *ParkWindow(void) {
     if ([ext isEqualToString:@"json"]) { *encoding = @"utf-8"; return @"application/json"; }
     if ([ext isEqualToString:@"png"]) return @"image/png";
     if ([ext isEqualToString:@"jpg"] || [ext isEqualToString:@"jpeg"]) return @"image/jpeg";
+    if ([ext isEqualToString:@"gif"]) return @"image/gif";
+    if ([ext isEqualToString:@"webp"]) return @"image/webp";
+    if ([ext isEqualToString:@"wav"]) return @"audio/wav";
+    if ([ext isEqualToString:@"mp3"]) return @"audio/mpeg";
+    if ([ext isEqualToString:@"ogg"]) return @"audio/ogg";
     if ([ext isEqualToString:@"ico"]) return @"image/x-icon";
     if ([ext isEqualToString:@"woff2"]) return @"font/woff2";
     *encoding = @"utf-8";
     return @"application/octet-stream";
+}
+
+- (NSString *)localFileForHost:(NSString *)host relative:(NSString *)rel {
+    if ([rel containsString:@".."] || [rel hasPrefix:@"/"]) return nil;
+    NSString *root = nil;
+    if ([host isEqualToString:@"cove.local"]) root = PagesDir;
+    else if ([host hasPrefix:@"plugin-"] && [host hasSuffix:@".cove.local"] && PluginsDir.length) {
+        NSUInteger trim = host.length - 7 - @".cove.local".length;
+        if ((NSInteger)trim <= 0) return nil;
+        NSString *pid = [[host substringWithRange:NSMakeRange(7, trim)] lowercaseString];
+        NSCharacterSet *bad = [[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz0123456789-"] invertedSet];
+        if (pid.length == 0 || [pid rangeOfCharacterFromSet:bad].location != NSNotFound) return nil;
+        root = [PluginsDir stringByAppendingPathComponent:pid];
+    }
+    if (!root.length) return nil;
+    root = root.stringByStandardizingPath;
+    NSString *full = [root stringByAppendingPathComponent:rel].stringByStandardizingPath;
+    NSString *prefix = [root hasSuffix:@"/"] ? root : [root stringByAppendingString:@"/"];
+    if (![full hasPrefix:prefix] || ![NSFileManager.defaultManager fileExistsAtPath:full]) return nil;
+    return full;
 }
 
 - (void)webView:(WKWebView *)webView startURLSchemeTask:(id<WKURLSchemeTask>)task {
@@ -255,16 +281,10 @@ static NSWindow *ParkWindow(void) {
         NSData *body = nil;
         NSString *encoding = nil;
         NSString *mime = @"text/html";
-        BOOL bad = host.length > 0 && ![host isEqualToString:@"cove.local"];
-        bad = bad || [rel containsString:@".."] || [rel hasPrefix:@"/"];
-        if (!bad && PagesDir.length) {
-            NSString *root = PagesDir.stringByStandardizingPath;
-            NSString *full = [root stringByAppendingPathComponent:rel].stringByStandardizingPath;
-            NSString *prefix = [root hasSuffix:@"/"] ? root : [root stringByAppendingString:@"/"];
-            if ([full hasPrefix:prefix] && [NSFileManager.defaultManager fileExistsAtPath:full]) {
-                body = [NSData dataWithContentsOfFile:full];
-                mime = [self mimeForPath:full encoding:&encoding];
-            }
+        NSString *full = [self localFileForHost:host relative:rel];
+        if (full) {
+            body = [NSData dataWithContentsOfFile:full];
+            mime = [self mimeForPath:full encoding:&encoding];
         }
         if (!body) {
             const char *html = "<!DOCTYPE html><meta charset=utf-8><title>Cove</title><body style=\"background:#121316;color:#f2f0ec;font:14px -apple-system\">That page isn't in Cove.</body>";
@@ -304,6 +324,10 @@ void cove_init(void) {
 
 void cove_set_pages_dir(const char *path) {
     PagesDir = path ? [NSString stringWithUTF8String:path] : nil;
+}
+
+void cove_set_plugins_dir(const char *path) {
+    PluginsDir = path ? [NSString stringWithUTF8String:path] : nil;
 }
 
 static void ApplyForceDark(WKWebView *webView) {

@@ -40,6 +40,9 @@ static class WebEngine
     static async Task StartMac(bool block, IReadOnlyCollection<string> allow)
     {
         MacBackend.Init(PagesDirectory);
+        var plugins = Path.Combine(Store.Current.Root, "plugins");
+        Directory.CreateDirectory(plugins);
+        MacBackend.SetPlugins(plugins);
         await MacBackend.ApplyBlocking(block, allow);
         App.Log("webkit ready");
     }
@@ -243,6 +246,7 @@ abstract class PageSession : IDisposable
     public abstract void Sleep();
     public abstract void Wake();
     public abstract void Run(string js);
+    public virtual void MapPlugins() { }
     public abstract Task<string?> EvalJson(string expression);
 
     /// <summary>Delivers a JSON message to the page's chrome.webview "message" listeners.</summary>

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -30,6 +31,7 @@ public partial class MainWindow : Window
     readonly bool _private;
     readonly AppState _state;
     readonly Vault _vault;
+    readonly PluginManager _plugins;
     readonly ObservableCollection<WorkspaceVm> _workspaces = new();
     readonly ObservableCollection<Bookmark> _bookmarks;
     readonly ObservableCollection<DownloadVm> _downloads = new();
@@ -64,6 +66,7 @@ public partial class MainWindow : Window
     TabVm? _tabDrag;
     Point _tabDragOrigin;
     bool _tabDragging;
+    string? _pluginSettingsId;
 
     public MainWindow() : this(false) { }
 
@@ -75,6 +78,8 @@ public partial class MainWindow : Window
         App.Log("xaml loaded");
         _state = Store.Current.State;
         _vault = new Vault(Store.Current.Root);
+        _plugins = new PluginManager(_state, Store.Current.Root);
+        _plugins.Refresh();
         _bookmarks = new ObservableCollection<Bookmark>(_state.Bookmarks);
         BookmarkList.ItemsSource = _bookmarks;
         WorkspaceList.ItemsSource = _workspaces;
@@ -126,6 +131,7 @@ public partial class MainWindow : Window
         if (_state.SidebarSize < 120) _state.SidebarSize = 188;
         SetSidebar(_state.SidebarOpen);
         ShowPanel("workspaces");
+        RebuildPluginList();
         RefreshHistory();
         AddHandler(KeyDownEvent, OnPreviewKey, RoutingStrategies.Tunnel);
         TabList.AddHandler(PointerPressedEvent, TabList_PointerPressed, RoutingStrategies.Tunnel);
@@ -334,6 +340,7 @@ public partial class MainWindow : Window
         else page.SetVisible(false);
         page.Navigate(string.IsNullOrWhiteSpace(url) ? NewTabUrl() : url);
         ScheduleSave();
+        _ = AnnounceTab(tab);
         return tab;
     }
 
@@ -363,6 +370,8 @@ public partial class MainWindow : Window
             if (success) RememberHistory(tab);
             _ = SetAdsFlagAsync(tab);
             _ = LoadFaviconAsync(tab);
+            InjectPlugins(tab);
+            if (success) BroadcastPlugin("navigation-committed", new { url = tab.Url, title = tab.Title });
             if (IsCurrent(tab)) UpdateChrome();
         };
         page.TitleChanged += title =>
@@ -393,6 +402,11 @@ public partial class MainWindow : Window
         {
             if (!doc.RootElement.TryGetProperty("kind", out var kindEl)) return;
             var kind = kindEl.GetString();
+            if (kind is not null && kind.StartsWith("plugin-", StringComparison.Ordinal))
+            {
+                HandlePlugin(tab, kind, doc.RootElement, source);
+                return;
+            }
             if (kind is not null && kind.StartsWith("vault-", StringComparison.Ordinal))
             {
                 HandleVault(tab, kind, doc.RootElement, source);
@@ -493,10 +507,11 @@ public partial class MainWindow : Window
         item.Settled = true;
         item.Running = false;
         item.Indeterminate = false;
-        if (status == 1)
-        {
-            item.Progress = 100;
-            item.Detail = "Saved";
+            if (status == 1)
+            {
+                item.Progress = 100;
+                item.Detail = "Saved";
+                BroadcastPlugin("download-finished", new { name = item.Name, path = item.Path });
             if (!_private)
             {
                 _state.Downloads.Insert(0, new DownloadRecord { Name = item.Name, Path = item.Path, When = DateTimeOffset.Now });
@@ -556,6 +571,7 @@ public partial class MainWindow : Window
         BootPanel.IsVisible = false;
         UpdateChrome();
         if (_ready) Persist();
+        BroadcastPlugin("tab-activated", new { title = tab.Title, url = tab.Url });
         _tabGuard++;
         Dispatcher.UIThread.Post(() =>
         {
@@ -1273,6 +1289,7 @@ public partial class MainWindow : Window
         PanelBookmarks.IsVisible = name == "bookmarks";
         PanelHistory.IsVisible = name == "history";
         PanelDownloads.IsVisible = name == "downloads";
+        PanelPlugins.IsVisible = name == "plugins";
         PanelExtensions.IsVisible = name == "extensions";
         PanelLimiter.IsVisible = name == "limiter";
         PanelSettings.IsVisible = name == "settings";
@@ -1281,7 +1298,7 @@ public partial class MainWindow : Window
 
     void HighlightRail(string name)
     {
-        foreach (var button in new[] { RailWorkspaces, RailBookmarks, RailHistory, RailDownloads, RailExtensions, RailLimiter, RailSettings })
+        foreach (var button in new[] { RailWorkspaces, RailBookmarks, RailHistory, RailDownloads, RailPlugins, RailExtensions, RailLimiter, RailSettings })
         {
             var on = button.Tag as string == name && _sidebarOpen;
             button.Foreground = on ? Cove.Theme.Accent : Cove.Theme.Ink;
@@ -1293,6 +1310,7 @@ public partial class MainWindow : Window
         if (PanelBookmarks.IsVisible) return "bookmarks";
         if (PanelHistory.IsVisible) return "history";
         if (PanelDownloads.IsVisible) return "downloads";
+        if (PanelPlugins.IsVisible) return "plugins";
         if (PanelExtensions.IsVisible) return "extensions";
         if (PanelLimiter.IsVisible) return "limiter";
         if (PanelSettings.IsVisible) return "settings";
@@ -2024,6 +2042,388 @@ public partial class MainWindow : Window
 
     static readonly JsonSerializerOptions WebJson = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
+    async Task AnnounceTab(TabVm tab)
+    {
+        for (var i = 0; i < 40 && (!tab.PluginsReady || tab.PluginInjecting); i++)
+            await Task.Delay(100);
+        PostPlugin(tab, "tab-created", new { title = tab.Title, url = tab.Url });
+    }
+
+    async void InjectPlugins(TabVm tab)
+    {
+        if (IsPasswordPage(tab.Url)) return;
+        if (tab.PluginInjecting)
+        {
+            tab.PluginInjectAgain = true;
+            return;
+        }
+        tab.PluginInjecting = true;
+        try
+        {
+            do
+            {
+                tab.PluginInjectAgain = false;
+                tab.Page.MapPlugins();
+                await tab.Page.EvalJson(_plugins.InjectionScript());
+                if (!string.IsNullOrWhiteSpace(tab.Url) && !tab.Url.StartsWith("about:", StringComparison.OrdinalIgnoreCase))
+                    tab.PluginsReady = true;
+            }
+            while (tab.PluginInjectAgain);
+        }
+        catch (Exception ex)
+        {
+            App.Log("plugin inject " + ex.Message);
+        }
+        finally
+        {
+            tab.PluginInjecting = false;
+            if (tab.PluginInjectAgain) InjectPlugins(tab);
+        }
+    }
+
+    void ReloadPlugins()
+    {
+        _plugins.Bump();
+        foreach (var tab in AllTabs())
+        {
+            tab.Page.MapPlugins();
+            InjectPlugins(tab);
+        }
+    }
+
+    void BroadcastPlugin<T>(string name, T detail)
+    {
+        foreach (var tab in AllTabs()) PostPlugin(tab, name, detail);
+    }
+
+    void PostPlugin<T>(TabVm tab, string name, T detail)
+    {
+        if (IsPasswordPage(tab.Url)) return;
+        try { tab.Page.PostJson(JsonSerializer.Serialize(new PluginEvent<T>("plugin-event", name, detail), WebJson)); }
+        catch { /* A sleeping tab can reject the message. */ }
+    }
+
+    static bool IsPasswordPage(string? url) =>
+        url is not null && url.Contains("cove.local/passwords", StringComparison.OrdinalIgnoreCase);
+
+    static bool MentionsPassword(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (property.Name.Contains("password", StringComparison.OrdinalIgnoreCase) || property.Name.Contains("vault", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    if (MentionsPassword(property.Value)) return true;
+                }
+                return false;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                    if (MentionsPassword(item)) return true;
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    void HandlePlugin(TabVm tab, string kind, JsonElement root, string? source)
+    {
+        if (IsPasswordPage(source) || IsPasswordPage(tab.Url) || MentionsPassword(root)) return;
+        var request = root.TryGetProperty("request", out var requestEl) ? requestEl.GetString() : null;
+        switch (kind)
+        {
+            case "plugin-set-setting":
+                var id = root.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
+                var key = root.TryGetProperty("key", out var keyEl) ? keyEl.GetString() ?? "" : "";
+                var value = root.TryGetProperty("value", out var valueEl) ? valueEl.ToString() : "";
+                if (key.Contains("password", StringComparison.OrdinalIgnoreCase)) return;
+                _plugins.SetSetting(id, key, value);
+                Store.Current.Save();
+                var updated = _plugins.Items.FirstOrDefault(p => p.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+                if (updated is not null)
+                    BroadcastPlugin("settings", new { id, settings = _plugins.ResolvedSettings(updated) });
+                return;
+            case "plugin-error":
+                Note(root.TryGetProperty("message", out var messageEl) ? messageEl.GetString() ?? "A plugin failed." : "A plugin failed.");
+                return;
+            case "plugin-note":
+                Note(root.TryGetProperty("text", out var textEl) ? textEl.GetString() ?? "" : "");
+                return;
+            case "plugin-search":
+                if (IsCurrent(tab)) NavigateActive(root.TryGetProperty("query", out var queryEl) ? queryEl.GetString() ?? "" : "");
+                return;
+            case "plugin-open":
+            case "plugin-navigate":
+                var destination = root.TryGetProperty("url", out var urlEl) ? urlEl.GetString() ?? "" : "";
+                if (IsPasswordPage(destination) || _current is null) return;
+                _ = CreateTabAsync(_current, string.IsNullOrWhiteSpace(destination) ? NewTabUrl() : destination, select: true);
+                return;
+            case "plugin-tabs":
+                ReplyPlugin(tab, request, AllTabs().Select(t => new { title = t.Title, url = t.Url }).ToList());
+                return;
+            case "plugin-bookmarks":
+                ReplyPlugin(tab, request, _state.Bookmarks.Select(b => new { title = b.Title, url = b.Url }).ToList());
+                return;
+            case "plugin-play":
+                var sound = root.TryGetProperty("url", out var soundEl) ? soundEl.GetString() ?? "" : "";
+                var volume = root.TryGetProperty("volume", out var volumeEl) && volumeEl.TryGetDouble(out var level) ? level : 0.5;
+                PlayPluginSound(sound, volume);
+                return;
+            case "plugin-add-bookmark":
+                var markUrl = root.TryGetProperty("url", out var markUrlEl) ? markUrlEl.GetString() ?? "" : "";
+                var markTitle = root.TryGetProperty("title", out var markTitleEl) ? markTitleEl.GetString() ?? markUrl : markUrl;
+                if (!Uri.TryCreate(markUrl, UriKind.Absolute, out var markUri) || markUri.Scheme is not ("https" or "http" or "cove") || IsPasswordPage(markUrl)) return;
+                var mark = new Bookmark { Title = markTitle, Url = markUrl };
+                _state.Bookmarks.Insert(0, mark);
+                _bookmarks.Insert(0, mark);
+                Store.Current.Save();
+                return;
+        }
+    }
+
+    void ReplyPlugin<T>(TabVm tab, string? request, T result)
+    {
+        if (string.IsNullOrWhiteSpace(request)) return;
+        try { tab.Page.PostJson(JsonSerializer.Serialize(new PluginResult<T>("plugin-result", request, result), WebJson)); }
+        catch { /* The page can close before the reply is sent. */ }
+    }
+
+    void PlayPluginSound(string url, double volume)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || !PluginManager.TryPath(uri, out var path)) return;
+        var level = Math.Clamp(volume, 0, 1);
+        try
+        {
+            if (OperatingSystem.IsMacOS())
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "afplay",
+                    ArgumentList = { "-v", level.ToString(CultureInfo.InvariantCulture), path },
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
+                return;
+            }
+            if (OperatingSystem.IsWindows()) NativeSound.Play(path);
+        }
+        catch (Exception ex)
+        {
+            App.Log("plugin sound " + ex.Message);
+        }
+    }
+
+    async void AddPluginZip_Click(object? sender, RoutedEventArgs e)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Plugin zip",
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType("Plugin zip") { Patterns = ["*.zip"] }]
+        });
+        if (files.Count == 0) return;
+        var path = files[0].TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) Note("Cove couldn't read that file.");
+        else InstallPlugin(path);
+    }
+
+    async void AddPluginFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Plugin folder", AllowMultiple = false });
+        if (folders.Count == 0) return;
+        var path = folders[0].TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) Note("Cove couldn't read that folder.");
+        else InstallPlugin(path);
+    }
+
+    void Plugin_DragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    void Plugin_Drop(object? sender, DragEventArgs e)
+    {
+        foreach (var file in e.DataTransfer.TryGetFiles() ?? [])
+        {
+            var path = file.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(path)) InstallPlugin(path);
+        }
+        e.Handled = true;
+    }
+
+    void InstallPlugin(string path)
+    {
+        var error = _plugins.Install(path);
+        if (error is not null)
+        {
+            Note(error);
+            return;
+        }
+        Store.Current.Save();
+        ReloadPlugins();
+        RebuildPluginList();
+        Note("Plugin loaded.");
+    }
+
+    void RebuildPluginList()
+    {
+        PluginList.Children.Clear();
+        if (_plugins.Items.Count == 0)
+        {
+            PluginList.Children.Add(new TextBlock { Text = "No plugins installed.", Foreground = Cove.Theme.Muted, TextWrapping = TextWrapping.Wrap });
+            return;
+        }
+        foreach (var plugin in _plugins.Items)
+        {
+            var block = new StackPanel { Spacing = 4, Margin = new Thickness(0, 0, 0, 12) };
+            var toggle = new CheckBox
+            {
+                Content = plugin.Name,
+                IsChecked = plugin.Enabled,
+                IsEnabled = string.IsNullOrWhiteSpace(plugin.Error),
+                FontWeight = FontWeight.SemiBold
+            };
+            toggle.IsCheckedChanged += (_, _) => SetPluginEnabled(plugin.Id, toggle.IsChecked == true);
+            block.Children.Add(toggle);
+            var detail = string.IsNullOrWhiteSpace(plugin.Version) ? plugin.Description : plugin.Version + " · " + plugin.Description;
+            block.Children.Add(new TextBlock { Text = detail, Foreground = Cove.Theme.Muted, FontSize = 11, TextWrapping = TextWrapping.Wrap });
+            if (!string.IsNullOrWhiteSpace(plugin.Error))
+                block.Children.Add(new TextBlock { Text = plugin.Error, Foreground = Cove.Theme.Accent, FontSize = 11, TextWrapping = TextWrapping.Wrap });
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var settings = new Button { Content = "Settings", Tag = plugin.Id };
+            settings.Click += OpenPluginSettings_Click;
+            var remove = new Button { Content = "Remove", Tag = plugin.Id };
+            remove.Click += RemovePlugin_Click;
+            buttons.Children.Add(settings);
+            buttons.Children.Add(remove);
+            block.Children.Add(buttons);
+            if (_pluginSettingsId == plugin.Id && string.IsNullOrWhiteSpace(plugin.Error) && !plugin.HasSettingsPage)
+                block.Children.Add(BuildPluginSettings(plugin));
+            PluginList.Children.Add(block);
+        }
+    }
+
+    void SetPluginEnabled(string id, bool enabled)
+    {
+        var plugin = _plugins.Items.FirstOrDefault(p => p.Id == id);
+        if (plugin is null || plugin.Enabled == enabled) return;
+        _plugins.SetEnabled(id, enabled);
+        Store.Current.Save();
+        ReloadPlugins();
+        RebuildPluginList();
+    }
+
+    void OpenPluginSettings_Click(object? sender, RoutedEventArgs e)
+    {
+        var id = (sender as Control)?.Tag as string;
+        var plugin = _plugins.Items.FirstOrDefault(p => p.Id == id);
+        if (plugin is null) return;
+        if (plugin.HasSettingsPage)
+        {
+            if (_current is null) return;
+            _ = CreateTabAsync(_current, "cove://" + plugin.Host + "/settings.html", select: true);
+            return;
+        }
+        _pluginSettingsId = _pluginSettingsId == plugin.Id ? null : plugin.Id;
+        RebuildPluginList();
+    }
+
+    void RemovePlugin_Click(object? sender, RoutedEventArgs e)
+    {
+        var id = (sender as Control)?.Tag as string;
+        if (string.IsNullOrWhiteSpace(id)) return;
+        _plugins.Remove(id);
+        if (_pluginSettingsId == id) _pluginSettingsId = null;
+        Store.Current.Save();
+        ReloadPlugins();
+        RebuildPluginList();
+    }
+
+    Control BuildPluginSettings(PluginVm plugin)
+    {
+        var panel = new StackPanel { Spacing = 4, Margin = new Thickness(0, 8, 0, 0) };
+        var values = _plugins.ResolvedSettings(plugin);
+        foreach (var field in plugin.Fields)
+        {
+            panel.Children.Add(new TextBlock { Text = string.IsNullOrWhiteSpace(field.Label) ? field.Id : field.Label, FontSize = 11, Foreground = Cove.Theme.Muted });
+            values.TryGetValue(field.Id, out var current);
+            var type = field.Type.ToLowerInvariant();
+            if (type == "bool")
+            {
+                var box = new CheckBox { IsChecked = current is "true" or "1" or "yes", Tag = (plugin.Id, field.Id) };
+                box.IsCheckedChanged += PluginBool_Changed;
+                panel.Children.Add(box);
+            }
+            else if (type == "choice")
+            {
+                var combo = new ComboBox { ItemsSource = field.Options, SelectedItem = current, Tag = (plugin.Id, field.Id), HorizontalAlignment = HorizontalAlignment.Stretch };
+                combo.SelectionChanged += PluginChoice_Changed;
+                panel.Children.Add(combo);
+            }
+            else if (type == "file")
+            {
+                var pick = new Button { Content = string.IsNullOrWhiteSpace(current) ? "Choose file" : "Replace file", Tag = (plugin.Id, field.Id), HorizontalAlignment = HorizontalAlignment.Left };
+                pick.Click += PluginFile_Click;
+                panel.Children.Add(pick);
+            }
+            else
+            {
+                var input = new TextBox { Text = current ?? "", Tag = (plugin.Id, field.Id) };
+                input.LostFocus += PluginText_LostFocus;
+                panel.Children.Add(input);
+            }
+        }
+        return panel;
+    }
+
+    void PluginBool_Changed(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not CheckBox { Tag: (string id, string key) } box) return;
+        SavePluginSetting(id, key, box.IsChecked == true ? "true" : "false");
+    }
+
+    void PluginChoice_Changed(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox { Tag: (string id, string key) } combo || combo.SelectedItem is not string value) return;
+        SavePluginSetting(id, key, value);
+    }
+
+    void PluginText_LostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox { Tag: (string id, string key) } input) return;
+        SavePluginSetting(id, key, input.Text ?? "");
+    }
+
+    async void PluginFile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: (string id, string key) }) return;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Plugin file",
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType("Images and sounds") { Patterns = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.svg", "*.wav", "*.mp3", "*.ogg"] }]
+        });
+        if (files.Count == 0) return;
+        var path = files[0].TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) { Note("Cove couldn't read that file."); return; }
+        var error = _plugins.CopySettingFile(id, key, path);
+        if (error is not null) { Note(error); return; }
+        Store.Current.Save();
+        var plugin = _plugins.Items.FirstOrDefault(p => p.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        if (plugin is not null) BroadcastPlugin("settings", new { id, settings = _plugins.ResolvedSettings(plugin) });
+        RebuildPluginList();
+    }
+
+    void SavePluginSetting(string id, string key, string value)
+    {
+        _plugins.SetSetting(id, key, value);
+        Store.Current.Save();
+        var plugin = _plugins.Items.FirstOrDefault(p => p.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        if (plugin is not null) BroadcastPlugin("settings", new { id, settings = _plugins.ResolvedSettings(plugin) });
+    }
+
     async void LoadExtension_Click(object? sender, RoutedEventArgs e)
     {
         if (_private)
@@ -2118,4 +2518,18 @@ public partial class MainWindow : Window
         public required string Url { get; init; }
         public required string Kind { get; init; }
     }
+
+    sealed record PluginEvent<T>(string Kind, string Event, T Detail);
+    sealed record PluginResult<T>(string Kind, string? Request, T Result);
+}
+
+static class NativeSound
+{
+    const int Async = 0x0001;
+    const int Filename = 0x00020000;
+
+    [DllImport("winmm.dll", CharSet = CharSet.Unicode, EntryPoint = "PlaySoundW")]
+    static extern bool PlaySound(string file, IntPtr module, int flags);
+
+    public static void Play(string path) => PlaySound(path, IntPtr.Zero, Async | Filename);
 }

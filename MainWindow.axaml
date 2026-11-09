@@ -116,6 +116,9 @@
                         <Button x:Name="RailPasswords" Classes="icon rail" ToolTip.Tip="Passwords" Click="Passwords_Click">
                             <PathIcon Data="{StaticResource IconKey}" Width="14" Height="14"/>
                         </Button>
+                        <Button x:Name="RailPlugins" Classes="icon rail" ToolTip.Tip="Plugins" Click="Rail_Click" Tag="plugins">
+                            <PathIcon Data="{StaticResource IconPlugin}" Width="14" Height="14"/>
+                        </Button>
                         <Button x:Name="RailExtensions" Classes="icon rail" ToolTip.Tip="Extensions" Click="Rail_Click" Tag="extensions">
                             <PathIcon Data="{StaticResource IconPuzzle}" Width="14" Height="14"/>
                         </Button>
@@ -146,6 +149,17 @@
                         <Grid x:Name="PanelDownloads" IsVisible="False" RowDefinitions="32,*">
                             <TextBlock Text="Downloads" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>
                             <ListBox x:Name="DownloadList" Grid.Row="1" Classes="flat" ItemTemplate="{StaticResource DownloadTemplate}" Tapped="Download_Open"/>
+                        </Grid>
+                        <Grid x:Name="PanelPlugins" IsVisible="False" RowDefinitions="32,Auto,Auto,*" DragDrop.AllowDrop="True" DragDrop.DragOver="Plugin_DragOver" DragDrop.Drop="Plugin_Drop">
+                            <TextBlock Text="Plugins" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Margin="4,0,4,8" Foreground="{x:Static local:Theme.Muted}" FontSize="11" TextWrapping="Wrap" Text="Drop a plugin folder or zip. It loads immediately. Plugins can change Cove, except passwords."/>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="2,0,2,8">
+                                <Button Content="Add zip" Click="AddPluginZip_Click"/>
+                                <Button Content="Add folder" Click="AddPluginFolder_Click"/>
+                            </StackPanel>
+                            <ScrollViewer Grid.Row="3">
+                                <StackPanel x:Name="PluginList" Margin="4,0,4,8"/>
+                            </ScrollViewer>
                         </Grid>
                         <Grid x:Name="PanelExtensions" IsVisible="False" RowDefinitions="32,Auto,Auto,*">
                             <TextBlock Text="Extensions" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>

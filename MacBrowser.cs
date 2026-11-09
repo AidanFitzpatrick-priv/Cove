@@ -13,6 +13,7 @@ static class MacBackend
     public static IntPtr Rules => _rules;
 
     public static void Init(string pagesDirectory) => Native.Init(pagesDirectory);
+    public static void SetPlugins(string directory) => Native.SetPlugins(directory);
     public static IntPtr CreateContainer() => Native.CreateContainer();
     public static void ReleaseContainer(IntPtr container) => Native.Release(container);
     public static void Fit(IntPtr container) => Native.Fit(container);
@@ -255,6 +256,8 @@ static partial class Native
         cove_set_force_dark(WebScripts.ForceDarkPages ? 1 : 0);
     }
 
+    public static void SetPlugins(string directory) => cove_set_plugins_dir(directory);
+
     public static IntPtr CreateContainer() => cove_container_create();
     public static void Release(IntPtr obj) { if (obj != IntPtr.Zero) cove_release(obj); }
     public static void Fit(IntPtr container) => cove_surface_fit(container);
@@ -384,6 +387,7 @@ static partial class Native
 
     [DllImport(Lib)] static extern void cove_init();
     [DllImport(Lib)] static extern void cove_set_pages_dir(string path);
+    [DllImport(Lib)] static extern void cove_set_plugins_dir(string path);
     [DllImport(Lib)] static extern void cove_set_force_dark(int enabled);
     [DllImport(Lib)] static extern IntPtr cove_container_create();
     [DllImport(Lib)] static extern void cove_release(IntPtr obj);

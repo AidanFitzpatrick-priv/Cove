@@ -1,0 +1,10 @@
+{
+  "id": "tab-sound",
+  "name": "Tab sound",
+  "version": "1.0.0",
+  "description": "Plays a short sound when a tab is created.",
+  "entry": "main.js",
+  "settings": [
+    { "id": "volume", "label": "Volume", "type": "number", "default": "0.4" }
+  ]
+}

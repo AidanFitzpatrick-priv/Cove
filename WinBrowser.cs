@@ -465,6 +465,7 @@ sealed class WinPageSession : PageSession
         await ApplyAutoDarkAsync(core);
 
         core.SetVirtualHostNameToFolderMapping(WinBackend.VirtualHostName, WebEngine.PagesDirectory, CoreWebView2HostResourceAccessKind.Allow);
+        MapPlugins();
 
         core.NavigationStarting += (_, e) =>
         {
@@ -557,12 +558,29 @@ sealed class WinPageSession : PageSession
         };
     }
 
+    public override void MapPlugins()
+    {
+        var core = _core;
+        if (Dead || core is null) return;
+        foreach (var (host, folder) in PluginManager.MappedFolders())
+        {
+            try { core.SetVirtualHostNameToFolderMapping(host, folder, CoreWebView2HostResourceAccessKind.Allow); }
+            catch { /* The view can close while a plugin folder is mapped. */ }
+        }
+    }
+
     void FilterRequest(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs e)
     {
-        if (!WinBackend.AdsOn) return;
         try
         {
             if (!Uri.TryCreate(e.Request.Uri, UriKind.Absolute, out var request)) return;
+            if (PluginManager.TryRead(request, out var bytes, out var mime))
+            {
+                var headers = "Content-Type: " + mime + "\r\nAccess-Control-Allow-Origin: *\r\n";
+                e.Response = WinBackend.Env?.CreateWebResourceResponse(new MemoryStream(bytes), 200, "OK", headers);
+                return;
+            }
+            if (!WinBackend.AdsOn) return;
             if (request.Scheme is not ("http" or "https")) return;
             if (!Uri.TryCreate(core.Source, UriKind.Absolute, out var page)) return;
             if (!AdBlock.ShouldBlock(request, page.Host, true, WinBackend.Allow)) return;

@@ -340,4 +340,125 @@ static class WebScripts
           return { ok: false, reason: "blocked" };
         })()
         """;
+
+    public const string PluginBoot = """
+        (() => {
+          const incoming = __PLUGINS__;
+          const path = (location.pathname || "").toLowerCase();
+          if (location.hostname === "cove.local" && path.includes("passwords")) return;
+          const trusted = location.hostname === "cove.local";
+          const secret = (el) => {
+            if (!el || !el.getAttribute) return false;
+            const type = (el.getAttribute("type") || "").toLowerCase();
+            const ac = (el.getAttribute("autocomplete") || "").toLowerCase();
+            const name = ((el.getAttribute("name") || "") + " " + (el.getAttribute("id") || "")).toLowerCase();
+            return type === "password" || ac.includes("password") || name.includes("password") || name.includes("passwd");
+          };
+          const hide = (el) => {
+            if (!secret(el) || el.__coveHidden) return el;
+            const proxy = new Proxy(el, { get(target, prop) {
+              if (prop === "value" || prop === "valueAsNumber" || prop === "valueAsDate") return "";
+              const value = Reflect.get(target, prop, target);
+              return typeof value === "function" ? value.bind(target) : value;
+            }});
+            return proxy;
+          };
+          const wrap = (node) => {
+            if (!node || trusted) return node;
+            if (secret(node)) return hide(node);
+            return new Proxy(node, { get(target, prop) {
+              if (prop === "querySelector") return (selector) => hide(target.querySelector(selector));
+              if (prop === "querySelectorAll") return (selector) => Array.from(target.querySelectorAll(selector), hide);
+              if (prop === "getElementById") return (id) => hide(target.getElementById(id));
+              if (prop === "activeElement") return hide(target.activeElement);
+              if (prop === "document") return wrap(target.document || target);
+              const value = Reflect.get(target, prop, target);
+              return typeof value === "function" ? value.bind(target) : value;
+            }});
+          };
+          const doc = trusted ? document : wrap(document);
+          const win = trusted ? window : wrap(window);
+          const listeners = window.__covePluginListeners || (window.__covePluginListeners = {});
+          const apis = window.__covePluginApis || (window.__covePluginApis = {});
+          const tokens = window.__covePluginTokens || (window.__covePluginTokens = {});
+          const post = (message) => chrome.webview?.postMessage(message);
+          if (!window.__covePluginEvents) {
+            window.__covePluginEvents = true;
+            chrome.webview?.addEventListener("message", (event) => {
+              const data = event.data || {};
+              if (data.kind === "plugin-result" && window.__covePluginWait?.[data.request]) {
+                window.__covePluginWait[data.request](data.result);
+                delete window.__covePluginWait[data.request];
+                return;
+              }
+              if (data.kind !== "plugin-event") return;
+              if (data.event === "settings" && data.detail?.id && apis[data.detail.id]) {
+                apis[data.detail.id].settings = Object.assign(apis[data.detail.id].settings, data.detail.settings || {});
+              }
+              for (const fn of listeners[data.event] || []) {
+                try { fn(data.detail || {}); } catch (err) { console.error(err); }
+              }
+            });
+          }
+          const wait = (kind, extra) => new Promise((resolve) => {
+            const request = Math.random().toString(36).slice(2);
+            window.__covePluginWait = window.__covePluginWait || {};
+            window.__covePluginWait[request] = resolve;
+            post(Object.assign({ kind, request }, extra || {}));
+          });
+          for (const plugin of incoming) {
+            const pluginHost = location.hostname.startsWith("plugin-") && location.hostname.endsWith(".cove.local");
+            if (pluginHost && location.hostname !== plugin.host) continue;
+            if (tokens[plugin.id] === plugin.gen) continue;
+            const previous = apis[plugin.id];
+            if (previous?._fns) {
+              for (const pair of previous._fns) {
+                const bag = listeners[pair[0]] || [];
+                const index = bag.indexOf(pair[1]);
+                if (index >= 0) bag.splice(index, 1);
+              }
+            }
+            const api = {
+              id: plugin.id,
+              name: plugin.name,
+              settings: Object.assign({}, plugin.settings || {}),
+              _fns: [],
+              file: (name) => plugin.origin + "/" + String(name || "").replace(/^\/+/, ""),
+              setting: (id) => api.settings[id] ?? "",
+              setSetting: (id, value) => post({ kind: "plugin-set-setting", id: plugin.id, key: String(id || ""), value: String(value ?? "") }),
+              on: (event, fn) => {
+                const bag = listeners[event] || (listeners[event] = []);
+                bag.push(fn);
+                api._fns.push([event, fn]);
+              },
+              open: (url) => post({ kind: "plugin-open", url: String(url || "") }),
+              search: (query) => post({ kind: "plugin-search", query: String(query || "") }),
+              note: (text) => post({ kind: "plugin-note", text: String(text || "") }),
+              tabs: () => wait("plugin-tabs"),
+              navigate: (url) => post({ kind: "plugin-navigate", url: String(url || "") }),
+              bookmarks: () => wait("plugin-bookmarks"),
+              addBookmark: (title, url) => post({ kind: "plugin-add-bookmark", title: String(title || ""), url: String(url || "") })
+            };
+            apis[plugin.id] = api;
+            const ownSettings = location.hostname === plugin.host && path.endsWith("/settings.html");
+            if (ownSettings) { window.cove = api; continue; }
+            tokens[plugin.id] = plugin.gen;
+            try {
+              function CoveAudio(src) {
+                if (!(this instanceof CoveAudio)) return new CoveAudio(src);
+                this.src = String(src || "");
+                this.volume = 1;
+              }
+              CoveAudio.prototype.play = function () {
+                post({ kind: "plugin-play", url: this.src, volume: Number(this.volume) || 0 });
+                return Promise.resolve();
+              };
+              const run = new Function("cove", "document", "window", "globalThis", "self", "Audio", plugin.code);
+              run(api, doc, win, win, win, CoveAudio);
+            } catch (err) {
+              post({ kind: "plugin-error", id: plugin.id, message: String(err && err.message || err) });
+            }
+          }
+        })();
+        """;
 }
