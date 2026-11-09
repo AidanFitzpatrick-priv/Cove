@@ -1,3 +1,6 @@
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+
 namespace Cove;
 
 static class AdBlock
@@ -56,6 +59,47 @@ static class AdBlock
         return requestHost == pageHost
             || requestHost.EndsWith("." + pageHost, StringComparison.Ordinal)
             || pageHost.EndsWith("." + requestHost, StringComparison.Ordinal);
+    }
+
+    public static string BuildRules(IReadOnlyCollection<string> allow)
+    {
+        var unless = allow
+            .Where(host => !string.IsNullOrWhiteSpace(host))
+            .Select(host => host.Trim().TrimStart('.').ToLowerInvariant())
+            .Where(host => host.Length > 0 && !host.Contains(' ') && !host.Contains('*'))
+            .Distinct(StringComparer.Ordinal)
+            .Select(host => "*" + host)
+            .Take(80)
+            .ToArray();
+        var rules = new JsonArray();
+        foreach (var pattern in HostFilters(Hosts))
+            rules.Add(Rule(pattern, thirdParty: true, unless));
+        foreach (var path in new[] { "pagead", "ptracking", "api/stats/ads", "get_midroll", "ad_break" })
+            rules.Add(Rule("https?://([^/]*\\.)?youtube\\.com/.+" + Regex.Escape(path), thirdParty: false, unless));
+        return rules.ToJsonString();
+    }
+
+    static IEnumerable<string> HostFilters(IEnumerable<string> hosts)
+    {
+        foreach (var host in hosts)
+            yield return "https?://([^/]*\\.)?" + Regex.Escape(host);
+    }
+
+    static JsonObject Rule(string filter, bool thirdParty, string[] unless)
+    {
+        var trigger = new JsonObject { ["url-filter"] = filter };
+        if (thirdParty) trigger["load-type"] = new JsonArray("third-party");
+        if (unless.Length > 0)
+        {
+            var domains = new JsonArray();
+            foreach (var host in unless) domains.Add(host);
+            trigger["unless-domain"] = domains;
+        }
+        return new JsonObject
+        {
+            ["trigger"] = trigger,
+            ["action"] = new JsonObject { ["type"] = "block" }
+        };
     }
 
     static bool IsBlockedHost(string host)

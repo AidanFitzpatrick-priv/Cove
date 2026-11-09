@@ -8,14 +8,14 @@
 
 <br/>
 
-[![macOS](https://img.shields.io/badge/macOS-supported-FF5A36?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac)
-[![Windows](https://img.shields.io/badge/Windows-supported-FF5A36?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac)
+[![macOS](https://img.shields.io/badge/macOS-supported-FF5A36?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/dev)
+[![Windows](https://img.shields.io/badge/Windows-supported-FF5A36?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/dev)
 [![Linux](https://img.shields.io/badge/Linux-planned-2A2D34?style=for-the-badge&logo=linux&logoColor=white)](#roadmap)
 [![Mobile](https://img.shields.io/badge/Mobile-planned-2A2D34?style=for-the-badge)](#roadmap)
 
 <br/>
 
-[![Version](https://img.shields.io/badge/version-0.1.0-101114?style=flat-square&labelColor=FF5A36)](Cove.csproj)
+[![Version](https://img.shields.io/badge/version-0.2.0-101114?style=flat-square&labelColor=FF5A36)](Cove.csproj)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download)
 [![C#](https://img.shields.io/badge/C%23-239120?style=flat-square&logo=csharp&logoColor=white)](Cove.csproj)
 [![WebKit](https://img.shields.io/badge/WebKit-macOS-101114?style=flat-square&logo=safari&logoColor=white&labelColor=1C1E24)](#platforms)
@@ -39,7 +39,7 @@ A small private browser. Cove uses the engine already on the computer, and keeps
 
 ## Features
 
-The current app is the [`mac` branch](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac). It runs on macOS and Windows. `master` is the first Windows-only version.
+The released app is [`master`](https://github.com/AidanFitzpatrick-priv/Cove/tree/master). It runs on macOS and Windows. [`dev`](https://github.com/AidanFitzpatrick-priv/Cove/tree/dev) is where changes land first.
 
 <table>
 <tr>
@@ -47,7 +47,7 @@ The current app is the [`mac` branch](https://github.com/AidanFitzpatrick-priv/C
 
 ### Tabs
 
-Horizontal tabs, with the address bar underneath. Suggestions come from bookmarks and history as you type.
+Horizontal tabs, with the address bar underneath. Drag a tab to reorder it. Suggestions come from bookmarks and history as you type.
 
 </td>
 <td width="33%" valign="top">
@@ -77,7 +77,7 @@ A private window skips history, suggestions, and saved passwords.
 
 ### Appearance
 
-Dark or light, plus an accent color. Session restore and blocking are settings too.
+Dark, light, or match the system, plus an accent color. Force dark asks web pages to follow. Session restore and blocking are settings too.
 
 </td>
 <td width="33%" valign="top">
@@ -115,6 +115,8 @@ Fullscreen video hides the sidebar and the top bar. Hover a video to pop it out.
 
 Unpacked extensions load from a folder that contains `manifest.json`. Cove runs their content scripts. Chrome extension APIs and background pages are not available.
 
+Plugins are separate. Drop a folder or zip with a `cove-plugin.json` onto the Plugins panel and it loads immediately. A plugin can change Cove, except passwords. `examples/new-tab-background` and `examples/tab-sound` are the two samples.
+
 <div align="center">
 
 ![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white)
@@ -135,14 +137,18 @@ Unpacked extensions load from a folder that contains `manifest.json`. Cove runs 
 
 On a Mac, a vault unlocked with sign-in or Touch ID keeps its key in the login keychain. On Windows, sign-in unlock uses DPAPI for the current user.
 
+## Install
+
+Windows setup is on the [latest release](https://github.com/AidanFitzpatrick-priv/Cove/releases/latest). An installed copy checks that page each time it opens and restarts into a newer release when one is there. A copy you build yourself does not check.
+
 ## Run
 
 ```text
-cove@mac      ~/Cove   mac branch     WebKit
-cove@windows  ~/Cove   mac branch     WebView2
+cove@mac      ~/Cove   dev branch     WebKit
+cove@windows  ~/Cove   dev branch     WebView2
 ```
 
-**macOS and Windows** (`mac` branch):
+**macOS and Windows**:
 
 ```bash
 dotnet run --project Cove.csproj
@@ -163,12 +169,6 @@ The first macOS build compiles `native/cove_webkit.m` into `libCoveWebKit.dylib`
 
 </details>
 
-**Windows only** (`master`):
-
-```powershell
-dotnet run --project Cove.csproj
-```
-
 ### Requirements
 
 | | macOS | Windows |
@@ -186,7 +186,7 @@ Nothing leaves the machine.
 | macOS | `~/Library/Application Support/Cove` |
 | Windows | `%LOCALAPPDATA%\Cove` |
 
-That folder holds the session and the password vault. On Windows, the WebView2 profile lives there too.
+That folder holds the session, installed plugins, and the password vault. On Windows, the WebView2 profile lives there too.
 
 ## Roadmap
 

@@ -1,0 +1,10 @@
+{
+  "id": "new-tab-background",
+  "name": "New tab background",
+  "version": "1.0.0",
+  "description": "Puts an image behind the new-tab search box.",
+  "entry": "main.js",
+  "settings": [
+    { "id": "image", "label": "Image", "type": "file", "default": "cover.svg" }
+  ]
+}

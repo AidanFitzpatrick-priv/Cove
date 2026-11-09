@@ -2,6 +2,140 @@ namespace Cove;
 
 static class WebScripts
 {
+    public static string Document => Bridge + "\n" + Bootstrap;
+    public static bool ForceDarkPages { get; set; }
+
+    public static string BuildDocument(string? extensionExtra = null)
+    {
+        var text = Document;
+        if (ForceDarkPages) text += "\n" + ForceDark;
+        if (!string.IsNullOrEmpty(extensionExtra)) text += "\n" + extensionExtra;
+        return text;
+    }
+
+    /// <summary>
+    /// Complements engine force-dark (WebView2 auto-dark CDP / WKWebView DarkAqua).
+    /// Does not invert pages — only steers prefers-color-scheme and color-scheme for JS/CSS.
+    /// </summary>
+    public const string ForceDark = """
+        (() => {
+          if (window.__coveForceDark) return;
+          const host = (location.hostname || "").toLowerCase();
+          const scheme = (location.protocol || "").toLowerCase();
+          if (host === "cove.local" || scheme === "cove:" || scheme === "about:" || scheme === "blob:" || scheme === "data:") return;
+          window.__coveForceDark = true;
+
+          const originalMatchMedia = window.matchMedia.bind(window);
+          window.matchMedia = (query) => {
+            const text = String(query || "");
+            if (text.includes("prefers-color-scheme")) {
+              const wantsDark = /prefers-color-scheme\s*:\s*dark/i.test(text);
+              const wantsLight = /prefers-color-scheme\s*:\s*light/i.test(text);
+              const matches = wantsDark ? true : wantsLight ? false : originalMatchMedia(query).matches;
+              const media = {
+                matches,
+                media: text,
+                onchange: null,
+                addListener() {},
+                removeListener() {},
+                addEventListener() {},
+                removeEventListener() {},
+                dispatchEvent() { return false; }
+              };
+              return media;
+            }
+            return originalMatchMedia(query);
+          };
+
+          const ensureMeta = () => {
+            let meta = document.querySelector('meta[name="color-scheme"]');
+            if (!meta) {
+              meta = document.createElement("meta");
+              meta.name = "color-scheme";
+              (document.head || document.documentElement).prepend(meta);
+            }
+            meta.content = "dark";
+            try { document.documentElement.style.setProperty("color-scheme", "dark", "important"); } catch (e) {}
+          };
+
+          ensureMeta();
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", ensureMeta, { once: true });
+          }
+        })();
+        """;
+
+    public const string Bridge = """
+        (() => {
+          if (window.__coveBridge) return;
+          window.__coveBridge = true;
+          const listeners = [];
+          // WebView2 supplies a native chrome.webview. WebKit gets a shim over its message handler.
+          if (!(window.chrome && window.chrome.webview)) {
+            window.chrome = window.chrome || {};
+            window.chrome.webview = {
+              postMessage(msg) {
+                try { window.webkit.messageHandlers.cove.postMessage(JSON.stringify(msg)); } catch (e) {}
+              },
+              addEventListener(type, fn) {
+                if (type === "message" && typeof fn === "function") listeners.push(fn);
+              },
+              removeEventListener(type, fn) {
+                const index = listeners.indexOf(fn);
+                if (index >= 0) listeners.splice(index, 1);
+              }
+            };
+          }
+          window.__coveDeliver = (payload) => {
+            let data = payload;
+            if (typeof payload === "string") {
+              try { data = JSON.parse(payload); } catch (e) { return; }
+            }
+            for (const fn of listeners.slice()) {
+              try { fn({ data }); } catch (e) {}
+            }
+          };
+          window.__coveExtMatch = (patterns) => {
+            const scheme = location.protocol.replace(":", "");
+            const host = location.hostname;
+            const path = location.pathname || "/";
+            const web = scheme === "http" || scheme === "https";
+            return (patterns || []).some((pattern) => {
+              if (pattern === "<all_urls>" || pattern === "*://*/*") return web;
+              const match = /^(\*|https?):\/\/([^/]+)(\/.*)$/.exec(pattern);
+              if (!match) return false;
+              if (match[1] !== "*" && match[1] !== scheme) return false;
+              if (match[1] === "*" && !web) return false;
+              const hostPattern = match[2];
+              if (hostPattern !== "*") {
+                if (hostPattern.startsWith("*.")) {
+                  const rest = hostPattern.slice(2);
+                  if (host !== rest && !host.endsWith("." + rest)) return false;
+                } else if (host !== hostPattern) return false;
+              }
+              const escaped = match[3].replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*");
+              return new RegExp("^" + escaped + "$").test(path);
+            });
+          };
+          window.__coveExtRun = (spec) => {
+            const go = () => {
+              try {
+                if (!window.__coveExtMatch(spec.patterns || [])) return;
+                if (spec.css) {
+                  const style = document.createElement("style");
+                  style.textContent = spec.code || "";
+                  (document.head || document.documentElement).appendChild(style);
+                } else {
+                  (0, eval)(spec.code || "");
+                }
+              } catch (e) {}
+            };
+            if (spec.atEnd && document.readyState === "loading") document.addEventListener("DOMContentLoaded", go);
+            else go();
+          };
+        })();
+        """;
+
     public const string Bootstrap = """
         (() => {
           if (!window.__cove) {
@@ -205,5 +339,126 @@ static class WebScripts
           }
           return { ok: false, reason: "blocked" };
         })()
+        """;
+
+    public const string PluginBoot = """
+        (() => {
+          const incoming = __PLUGINS__;
+          const path = (location.pathname || "").toLowerCase();
+          if (location.hostname === "cove.local" && path.includes("passwords")) return;
+          const trusted = location.hostname === "cove.local";
+          const secret = (el) => {
+            if (!el || !el.getAttribute) return false;
+            const type = (el.getAttribute("type") || "").toLowerCase();
+            const ac = (el.getAttribute("autocomplete") || "").toLowerCase();
+            const name = ((el.getAttribute("name") || "") + " " + (el.getAttribute("id") || "")).toLowerCase();
+            return type === "password" || ac.includes("password") || name.includes("password") || name.includes("passwd");
+          };
+          const hide = (el) => {
+            if (!secret(el) || el.__coveHidden) return el;
+            const proxy = new Proxy(el, { get(target, prop) {
+              if (prop === "value" || prop === "valueAsNumber" || prop === "valueAsDate") return "";
+              const value = Reflect.get(target, prop, target);
+              return typeof value === "function" ? value.bind(target) : value;
+            }});
+            return proxy;
+          };
+          const wrap = (node) => {
+            if (!node || trusted) return node;
+            if (secret(node)) return hide(node);
+            return new Proxy(node, { get(target, prop) {
+              if (prop === "querySelector") return (selector) => hide(target.querySelector(selector));
+              if (prop === "querySelectorAll") return (selector) => Array.from(target.querySelectorAll(selector), hide);
+              if (prop === "getElementById") return (id) => hide(target.getElementById(id));
+              if (prop === "activeElement") return hide(target.activeElement);
+              if (prop === "document") return wrap(target.document || target);
+              const value = Reflect.get(target, prop, target);
+              return typeof value === "function" ? value.bind(target) : value;
+            }});
+          };
+          const doc = trusted ? document : wrap(document);
+          const win = trusted ? window : wrap(window);
+          const listeners = window.__covePluginListeners || (window.__covePluginListeners = {});
+          const apis = window.__covePluginApis || (window.__covePluginApis = {});
+          const tokens = window.__covePluginTokens || (window.__covePluginTokens = {});
+          const post = (message) => chrome.webview?.postMessage(message);
+          if (!window.__covePluginEvents) {
+            window.__covePluginEvents = true;
+            chrome.webview?.addEventListener("message", (event) => {
+              const data = event.data || {};
+              if (data.kind === "plugin-result" && window.__covePluginWait?.[data.request]) {
+                window.__covePluginWait[data.request](data.result);
+                delete window.__covePluginWait[data.request];
+                return;
+              }
+              if (data.kind !== "plugin-event") return;
+              if (data.event === "settings" && data.detail?.id && apis[data.detail.id]) {
+                apis[data.detail.id].settings = Object.assign(apis[data.detail.id].settings, data.detail.settings || {});
+              }
+              for (const fn of listeners[data.event] || []) {
+                try { fn(data.detail || {}); } catch (err) { console.error(err); }
+              }
+            });
+          }
+          const wait = (kind, extra) => new Promise((resolve) => {
+            const request = Math.random().toString(36).slice(2);
+            window.__covePluginWait = window.__covePluginWait || {};
+            window.__covePluginWait[request] = resolve;
+            post(Object.assign({ kind, request }, extra || {}));
+          });
+          for (const plugin of incoming) {
+            const pluginHost = location.hostname.startsWith("plugin-") && location.hostname.endsWith(".cove.local");
+            if (pluginHost && location.hostname !== plugin.host) continue;
+            if (tokens[plugin.id] === plugin.gen) continue;
+            const previous = apis[plugin.id];
+            if (previous?._fns) {
+              for (const pair of previous._fns) {
+                const bag = listeners[pair[0]] || [];
+                const index = bag.indexOf(pair[1]);
+                if (index >= 0) bag.splice(index, 1);
+              }
+            }
+            const api = {
+              id: plugin.id,
+              name: plugin.name,
+              settings: Object.assign({}, plugin.settings || {}),
+              _fns: [],
+              file: (name) => plugin.origin + "/" + String(name || "").replace(/^\/+/, ""),
+              setting: (id) => api.settings[id] ?? "",
+              setSetting: (id, value) => post({ kind: "plugin-set-setting", id: plugin.id, key: String(id || ""), value: String(value ?? "") }),
+              on: (event, fn) => {
+                const bag = listeners[event] || (listeners[event] = []);
+                bag.push(fn);
+                api._fns.push([event, fn]);
+              },
+              open: (url) => post({ kind: "plugin-open", url: String(url || "") }),
+              search: (query) => post({ kind: "plugin-search", query: String(query || "") }),
+              note: (text) => post({ kind: "plugin-note", text: String(text || "") }),
+              tabs: () => wait("plugin-tabs"),
+              navigate: (url) => post({ kind: "plugin-navigate", url: String(url || "") }),
+              bookmarks: () => wait("plugin-bookmarks"),
+              addBookmark: (title, url) => post({ kind: "plugin-add-bookmark", title: String(title || ""), url: String(url || "") })
+            };
+            apis[plugin.id] = api;
+            const ownSettings = location.hostname === plugin.host && path.endsWith("/settings.html");
+            if (ownSettings) { window.cove = api; continue; }
+            tokens[plugin.id] = plugin.gen;
+            try {
+              function CoveAudio(src) {
+                if (!(this instanceof CoveAudio)) return new CoveAudio(src);
+                this.src = String(src || "");
+                this.volume = 1;
+              }
+              CoveAudio.prototype.play = function () {
+                post({ kind: "plugin-play", url: this.src, volume: Number(this.volume) || 0 });
+                return Promise.resolve();
+              };
+              const run = new Function("cove", "document", "window", "globalThis", "self", "Audio", plugin.code);
+              run(api, doc, win, win, win, CoveAudio);
+            } catch (err) {
+              post({ kind: "plugin-error", id: plugin.id, message: String(err && err.message || err) });
+            }
+          }
+        })();
         """;
 }

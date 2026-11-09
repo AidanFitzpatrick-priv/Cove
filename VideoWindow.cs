@@ -1,13 +1,12 @@
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
+using System.Globalization;
+using Avalonia.Controls;
+using Avalonia.Media;
 
 namespace Cove;
 
 sealed class VideoWindow : Window
 {
-    readonly MediaElement _media;
-    bool _paused;
+    readonly WebHostView _host = new();
 
     public VideoWindow(string src, double seconds)
     {
@@ -19,35 +18,44 @@ sealed class VideoWindow : Window
         Topmost = true;
         Background = Brushes.Black;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        _media = new MediaElement
+        Content = _host;
+        Opened += (_, _) =>
         {
-            LoadedBehavior = MediaState.Manual,
-            UnloadedBehavior = MediaState.Close,
-            Stretch = Stretch.Uniform,
-            Source = new Uri(src)
-        };
-        Content = _media;
-        _media.MediaOpened += (_, _) =>
-        {
-            if (seconds > 1) _media.Position = TimeSpan.FromSeconds(seconds);
-            _media.Play();
-        };
-        _media.MediaFailed += (_, _) =>
-        {
-            Content = new TextBlock
+            try
             {
-                Text = "This video cannot play in a separate window.",
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(24)
-            };
+                var page = WebEngine.OpenPage(isPrivate: false, store: IntPtr.Zero);
+                _host.Adopt(page);
+                _host.Activate(page);
+                page.LoadHtml(Html(src, seconds));
+            }
+            catch (Exception ex)
+            {
+                App.Log(ex.ToString());
+                Content = new TextBlock
+                {
+                    Text = "This video cannot play in a separate window.",
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Avalonia.Thickness(24)
+                };
+            }
         };
-        _media.MouseLeftButtonDown += (_, _) =>
-        {
-            if (_paused) { _media.Play(); _paused = false; }
-            else { _media.Pause(); _paused = true; }
-        };
+        Closing += (_, _) => _host.Shutdown();
+    }
+
+    static string Html(string src, double seconds)
+    {
+        var safe = src.Replace("&", "&amp;", StringComparison.Ordinal).Replace("\"", "&quot;", StringComparison.Ordinal).Replace("<", "&lt;", StringComparison.Ordinal);
+        var time = seconds.ToString("0.###", CultureInfo.InvariantCulture);
+        return $$"""
+            <!DOCTYPE html>
+            <html><head><meta charset="utf-8"></head>
+            <body style="margin:0;background:#000;height:100vh">
+            <video id="v" src="{{safe}}" controls autoplay style="width:100%;height:100%;object-fit:contain;background:#000"></video>
+            <script>const v=document.getElementById('v'); v.addEventListener('loadedmetadata', () => { try { v.currentTime = {{time}}; } catch (e) {} });</script>
+            </body></html>
+            """;
     }
 }

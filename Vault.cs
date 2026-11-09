@@ -1,7 +1,5 @@
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 
@@ -24,7 +22,10 @@ sealed class Vault
 
     public bool Exists => File.Exists(_path);
     public bool IsUnlocked => _key is not null;
-    public bool HasWindowsUnlock => File.Exists(_windowsPath);
+    public bool HasWindowsUnlock => OperatingSystem.IsWindows()
+        ? File.Exists(_windowsPath)
+        : MacKeychain.Exists("Cove", "vault-key");
+    public bool HasTouchId => OperatingSystem.IsMacOS() && HasWindowsUnlock && MacTouchId.Available();
     public List<VaultEntry> Entries { get; } = [];
 
     public void Create(string password)
@@ -45,8 +46,13 @@ sealed class Vault
     public void EnableWindowsUnlock()
     {
         if (_key is null) return;
-        var blob = ProtectedData.Protect(_key, null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(_windowsPath, blob);
+        if (OperatingSystem.IsWindows())
+        {
+            var blob = ProtectedData.Protect(_key, null, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(_windowsPath, blob);
+            return;
+        }
+        MacKeychain.Save("Cove", "vault-key", _key);
     }
 
     public bool Unlock(string password)
@@ -68,13 +74,29 @@ sealed class Vault
         if (!HasWindowsUnlock || !File.Exists(_path)) return false;
         try
         {
-            var key = ProtectedData.Unprotect(File.ReadAllBytes(_windowsPath), null, DataProtectionScope.CurrentUser);
-            return AcceptKey(Read(), key);
+            byte[]? key = null;
+            if (OperatingSystem.IsWindows())
+                key = ProtectedData.Unprotect(File.ReadAllBytes(_windowsPath), null, DataProtectionScope.CurrentUser);
+            else
+                key = MacKeychain.Load("Cove", "vault-key");
+            return key is not null && AcceptKey(Read(), key);
         }
         catch
         {
             return false;
         }
+    }
+
+    public async Task<(bool Ok, string? Error)> UnlockWithTouchIdAsync()
+    {
+        if (!OperatingSystem.IsMacOS()) return (false, "Touch ID is only available on Mac.");
+        if (!HasWindowsUnlock) return (false, "Turn on Mac unlock for this vault first.");
+        if (!MacTouchId.Available()) return (false, "Touch ID isn't available on this Mac.");
+        var ok = await MacTouchId.EvaluateAsync("Unlock the Cove password vault");
+        if (!ok) return (false, "Touch ID was cancelled or didn't match.");
+        return UnlockWithWindows()
+            ? (true, null)
+            : (false, "Couldn't open the vault after Touch ID.");
     }
 
     bool AcceptKey(FileModel file, byte[] key)
@@ -211,25 +233,4 @@ sealed class Vault
         public string Username { get; set; } = "";
         public string Secret { get; set; } = "";
     }
-}
-
-static class WindowsSignIn
-{
-    public static bool Check(string password)
-    {
-        if (string.IsNullOrEmpty(password)) return false;
-        var name = WindowsIdentity.GetCurrent().Name;
-        var slash = name.IndexOf('\\');
-        var domain = slash > 0 ? name[..slash] : ".";
-        var user = slash > 0 ? name[(slash + 1)..] : name;
-        if (!LogonUser(user, domain, password, 3, 0, out var token)) return false;
-        CloseHandle(token);
-        return true;
-    }
-
-    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    static extern bool LogonUser(string user, string domain, string password, int type, int provider, out IntPtr token);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern bool CloseHandle(IntPtr handle);
 }

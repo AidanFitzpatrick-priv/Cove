@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cove — Private browser for Mac and Windows</title>
+  <meta name="description" content="Cove is a small private browser for macOS and Windows. WebKit on Mac, WebView2 on Windows. Data stays on this machine. No account. No sync." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="Cove home">Co<span>ve</span></a>
+    <nav class="site-nav">
+      <a href="#features">Features</a>
+      <a href="#downloads">Downloads</a>
+      <a class="nav-cta" href="#downloads">Get Cove</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="brand">Cove</p>
+        <h1>A private browser that stays on this computer.</h1>
+        <p class="lede">WebKit on macOS, WebView2 on Windows. No account, no sync, no Chromium shipping with the app.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#downloads">Get Cove</a>
+          <a class="btn btn-ghost" href="#features">See features</a>
+        </div>
+      </div>
+
+      <div class="hero-stage" aria-hidden="true">
+        <div class="browser">
+          <div class="browser-chrome">
+            <div class="browser-tabs">
+              <div class="tab active"><span class="tab-dot"></span><span>New tab</span></div>
+              <div class="tab"><span class="tab-dot muted"></span><span>Docs</span></div>
+              <div class="tab"><span class="tab-dot muted"></span><span>Mail</span></div>
+            </div>
+            <div class="browser-toolbar">
+              <div class="browser-address is-suggesting">
+                <span class="lock"></span>
+                <span class="url typing">cove</span>
+                <span class="url-caret"></span>
+              </div>
+              <div class="suggest">
+                <div class="suggest-row is-active"><span>Cove passwords</span><span class="suggest-url">cove.local/passwords</span></div>
+                <div class="suggest-row"><span>Bookmarks · Cove docs</span><span class="suggest-url">docs.local/cove</span></div>
+                <div class="suggest-row"><span>History · cove.local</span><span class="suggest-url">cove.local</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="browser-body">
+            <aside class="browser-side">
+              <div class="side-block"></div>
+              <div class="side-block short"></div>
+              <div class="side-block"></div>
+              <div class="side-label">Settings</div>
+              <div class="side-chip">Dark</div>
+              <div class="side-chip soft">Accent</div>
+              <div class="side-swatch"></div>
+            </aside>
+            <div class="browser-page">
+              <p class="page-brand">Co<span>ve</span></p>
+              <div class="page-search">
+                <span>Search Google or type a URL</span>
+                <span class="page-go">Go</span>
+              </div>
+              <p class="page-note">Search stays on Google. Nothing here phones home.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section features">
+      <div class="section-head">
+        <h2>Built for local privacy</h2>
+        <p>Everything Cove remembers lives in <code>~/Library/Application Support/Cove</code> on Mac or <code>%LOCALAPPDATA%\Cove</code> on Windows.</p>
+      </div>
+
+      <ul class="feature-list">
+        <li>
+          <h3>Tabs &amp; autocomplete</h3>
+          <p>Horizontal tabs with the address bar underneath. Suggestions pull from bookmarks and history as you type.</p>
+        </li>
+        <li>
+          <h3>Sidebar layout</h3>
+          <p>A slim sidebar docks on the left, right, or bottom, and collapses to icons when you want more room for the page.</p>
+        </li>
+        <li>
+          <h3>Workspaces</h3>
+          <p>Separate workspaces that still share logins, each with its own color so you can tell them apart at a glance.</p>
+        </li>
+        <li>
+          <h3>Settings</h3>
+          <p>Dark, light, or match the system. Pick an accent, restore your last session, and toggle address suggestions or blocking.</p>
+        </li>
+        <li>
+          <h3>Ad &amp; tracker blocking</h3>
+          <p>Built-in blocking by default, with a one-click allow when you need the current site unfiltered.</p>
+        </li>
+        <li>
+          <h3>Local bookmarks &amp; history</h3>
+          <p>Bookmarks, history, and downloads are stored locally. Nothing is uploaded or synced to a Cove account.</p>
+        </li>
+        <li>
+          <h3>Password vault</h3>
+          <p>Passwords save only on this computer. Unlock with a Cove password, this computer’s sign-in, or Touch ID on Mac.</p>
+        </li>
+        <li>
+          <h3>Memory aware</h3>
+          <p>A memory cap puts background tabs to sleep so Cove stays light while you keep a pile of tabs open.</p>
+        </li>
+        <li>
+          <h3>Video focus</h3>
+          <p>Fullscreen video hides the sidebar and top bar. Hover a video to pop it out into its own window.</p>
+        </li>
+        <li>
+          <h3>Unpacked extensions</h3>
+          <p>Load an unpacked extension folder that contains <code>manifest.json</code>. Cove runs its content scripts.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section id="downloads" class="section downloads">
+      <div class="section-head">
+        <h2>Downloads</h2>
+        <p>Cove 0.1.0 runs on macOS and Windows from the same codebase.</p>
+      </div>
+
+      <div class="download-panel">
+        <div class="download-main">
+          <div class="download-meta">
+            <p class="os">macOS &amp; Windows</p>
+            <p class="version">Cove 0.1.0 · .NET 10 · Avalonia</p>
+          </div>
+          <a class="btn btn-primary btn-lg" href="#run">Get Cove</a>
+          <p class="hint">Installer builds will publish here. For now, run Cove from the project source on either platform.</p>
+          <div class="platforms">
+            <div class="platform is-ready">
+              <span class="platform-name">macOS</span>
+              <span class="platform-status">WebKit</span>
+            </div>
+            <div class="platform is-ready">
+              <span class="platform-name">Windows</span>
+              <span class="platform-status">WebView2</span>
+            </div>
+            <div class="platform">
+              <span class="platform-name">Linux</span>
+              <span class="platform-status">Not yet</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="download-reqs" id="run">
+          <h3>Requirements</h3>
+          <ul>
+            <li>macOS 12.3+ or Windows 10+</li>
+            <li><a href="https://dotnet.microsoft.com/download" rel="noopener">.NET 10 SDK</a></li>
+            <li>Xcode command line tools on Mac, or Edge WebView2 Runtime on Windows</li>
+          </ul>
+          <h3>Run from source</h3>
+          <pre><code>dotnet run --project Cove.csproj</code></pre>
+          <p class="req-note">The first macOS build compiles <code>native/cove_webkit.m</code> into <code>libCoveWebKit.dylib</code>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p class="wordmark">Co<span>ve</span></p>
+    <p>Private by default. Local by design.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

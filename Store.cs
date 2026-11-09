@@ -41,6 +41,10 @@ sealed class Store
         state.Bookmarks ??= [];
         state.History ??= [];
         state.Downloads ??= [];
+        state.ExtensionPaths ??= [];
+        state.Plugins ??= [];
+        foreach (var plugin in state.Plugins)
+            plugin.Settings ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (state.RamCapMb < 512) state.RamCapMb = 4096;
         return new Store(state, root);
     }

@@ -2,20 +2,27 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Cove</Product>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>Cove</AssemblyName>
     <RootNamespace>Cove</RootNamespace>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- The WebView2 package also references WPF/WinForms assemblies that clash with WindowsBase off Windows. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.23" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,5 +30,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <Target Name="CompileWebKitShim" BeforeTargets="CoreCompile" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PropertyGroup>
+      <WebKitShim>$(IntermediateOutputPath)libCoveWebKit.dylib</WebKitShim>
+    </PropertyGroup>
+    <Exec Command="xcrun --sdk macosx clang -dynamiclib -fobjc-arc -mmacosx-version-min=12.3 -framework Foundation -framework AppKit -framework WebKit -framework Security -framework OpenDirectory -framework LocalAuthentication -o &quot;$(WebKitShim)&quot; &quot;$(MSBuildProjectDirectory)/native/cove_webkit.m&quot;" />
+    <Copy SourceFiles="$(WebKitShim)" DestinationFolder="$(OutputPath)" />
+  </Target>
 
 </Project>
