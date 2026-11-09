@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360" viewBox="0 0 1000 360" role="img" aria-label="Cove, a private browser">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14161C"/>
+      <stop offset="1" stop-color="#0C0D11"/>
+    </linearGradient>
+  </defs>
+  <rect width="1000" height="360" rx="22" fill="url(#bg)"/>
+  <ellipse cx="760" cy="190" rx="250" ry="150" fill="#FF5A36" opacity="0.13"/>
+  <ellipse cx="180" cy="300" rx="180" ry="80" fill="#FF5A36" opacity="0.06"/>
+
+  <text x="64" y="128" fill="#8D8A84" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" letter-spacing="3.2">PRIVATE BROWSER</text>
+  <text x="64" y="196" fill="#F4F1EA" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="78" font-weight="700">Co<tspan fill="#FF5A36">ve</tspan></text>
+  <text x="66" y="236" fill="#C8C4BB" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18">Stays on this computer.</text>
+
+  <rect x="64" y="262" width="118" height="28" rx="14" fill="#1C1E24" stroke="#2A2D34"/>
+  <circle cx="82" cy="276" r="4" fill="#FF5A36"/>
+  <text x="94" y="281" fill="#F4F1EA" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">macOS</text>
+  <rect x="192" y="262" width="128" height="28" rx="14" fill="#1C1E24" stroke="#2A2D34"/>
+  <circle cx="210" cy="276" r="4" fill="#FF5A36"/>
+  <text x="222" y="281" fill="#F4F1EA" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">Windows</text>
+
+  <rect x="548" y="58" width="400" height="250" rx="8" fill="#000" opacity="0.35"/>
+  <rect x="536" y="46" width="400" height="250" rx="12" fill="#17191E" stroke="#2A2D34"/>
+  <rect x="536" y="46" width="400" height="36" rx="12" fill="#1C1E24"/>
+  <rect x="536" y="70" width="400" height="12" fill="#1C1E24"/>
+  <circle cx="558" cy="64" r="5" fill="#FF5A36"/>
+  <circle cx="574" cy="64" r="5" fill="#3A3D46"/>
+  <circle cx="590" cy="64" r="5" fill="#3A3D46"/>
+  <rect x="612" y="52" width="92" height="22" rx="6" fill="#101114"/>
+  <text x="628" y="67" fill="#F4F1EA" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">New tab</text>
+  <rect x="710" y="52" width="72" height="22" rx="6" fill="#22252C"/>
+  <text x="726" y="67" fill="#8D8A84" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">Docs</text>
+  <rect x="788" y="52" width="72" height="22" rx="6" fill="#22252C"/>
+  <text x="806" y="67" fill="#8D8A84" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">Mail</text>
+
+  <rect x="552" y="94" width="368" height="26" rx="7" fill="#101114"/>
+  <circle cx="568" cy="107" r="3.5" fill="#7DCEA0"/>
+  <text x="580" y="111" fill="#8D8A84" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12">cove.local / private</text>
+
+  <rect x="552" y="132" width="52" height="148" rx="8" fill="#14161B"/>
+  <rect x="564" y="146" width="28" height="8" rx="2" fill="#FF5A36"/>
+  <rect x="564" y="162" width="28" height="8" rx="2" fill="#2A2D34"/>
+  <rect x="564" y="178" width="20" height="8" rx="2" fill="#2A2D34"/>
+  <rect x="564" y="248" width="12" height="12" rx="3" fill="#FF5A36"/>
+  <rect x="580" y="248" width="12" height="12" rx="3" fill="#7C6BF2"/>
+
+  <text x="628" y="188" fill="#F4F1EA" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700">Co<tspan fill="#FF5A36">ve</tspan></text>
+  <rect x="628" y="204" width="250" height="28" rx="8" fill="#101114" stroke="#2A2D34"/>
+  <text x="640" y="222" fill="#6F6C66" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">Search or type a URL</text>
+  <text x="628" y="256" fill="#8D8A84" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11">Nothing here phones home.</text>
+</svg>
