@@ -81,7 +81,7 @@ dotnet run --project Cove.csproj
 
 The first macOS build compiles `native/cove_webkit.m` into `libCoveWebKit.dylib`.
 
-On this branch (`master`), Windows only:
+On the `master` branch, Windows only:
 
 ```powershell
 dotnet run --project Cove.csproj
