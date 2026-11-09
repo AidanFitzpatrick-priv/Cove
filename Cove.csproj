@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>0.1.0</Version>
     <Product>Cove</Product>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>Cove</AssemblyName>
     <RootNamespace>Cove</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
