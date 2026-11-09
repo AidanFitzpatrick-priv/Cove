@@ -1,77 +1,157 @@
-# Cove
+<div align="center">
 
-A small private browser for **macOS** and **Windows**. Cove uses the engine already on the computer — system WebKit on a Mac, Microsoft Edge WebView2 on Windows — and keeps browsing data on that machine. There is no Cove account, and nothing is synced.
+<img src="assets/banner.svg" alt="Cove, a private browser that stays on this computer" width="100%"/>
 
-Linux and mobile are planned.
+<br/>
 
-| Platform | Status |
-| --- | --- |
-| macOS | Supported |
-| Windows | Supported |
-| Linux | Planned |
-| Mobile | Planned |
+<img src="https://readme-typing-svg.demolab.com?font=Figtree&weight=600&size=22&duration=2600&pause=800&color=FF5A36&center=true&vCenter=true&width=680&height=46&lines=Private+by+default.;Local+by+design.;WebKit+on+a+Mac.;WebView2+on+Windows.;Linux%2C+planned.;Mobile%2C+planned." alt="Private by default. Local by design."/>
 
-The build that runs on both macOS and Windows is the [`mac` branch](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac). `master` is the first Windows-only version.
+<br/>
+
+[![macOS](https://img.shields.io/badge/macOS-supported-FF5A36?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac)
+[![Windows](https://img.shields.io/badge/Windows-supported-FF5A36?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac)
+[![Linux](https://img.shields.io/badge/Linux-planned-2A2D34?style=for-the-badge&logo=linux&logoColor=white)](#roadmap)
+[![Mobile](https://img.shields.io/badge/Mobile-planned-2A2D34?style=for-the-badge)](#roadmap)
+
+<br/>
+
+[![Version](https://img.shields.io/badge/version-0.1.0-101114?style=flat-square&labelColor=FF5A36)](Cove.csproj)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download)
+[![C#](https://img.shields.io/badge/C%23-239120?style=flat-square&logo=csharp&logoColor=white)](Cove.csproj)
+[![WebKit](https://img.shields.io/badge/WebKit-macOS-101114?style=flat-square&logo=safari&logoColor=white&labelColor=1C1E24)](#platforms)
+[![WebView2](https://img.shields.io/badge/WebView2-Windows-0078D4?style=flat-square&logo=microsoftedge&logoColor=white)](#platforms)
+
+<br/>
+
+A small private browser. Cove uses the engine already on the computer, and keeps bookmarks, history, downloads, and passwords on that machine. No account. No sync.
+
+<br/>
+
+<a href="#features">Features</a> ·
+<a href="#platforms">Platforms</a> ·
+<a href="#run">Run</a> ·
+<a href="#data">Data</a> ·
+<a href="#roadmap">Roadmap</a>
+
+</div>
+
+---
 
 ## Features
 
-The list below is the current app, on the `mac` branch.
+The current app is the [`mac` branch](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac). It runs on macOS and Windows. `master` is the first Windows-only version.
 
-**Layout**
+<table>
+<tr>
+<td width="33%" valign="top">
 
-- Horizontal tabs, with the address bar underneath
-- Suggestions from bookmarks and history as you type
-- A slim sidebar that docks on the left, right, or bottom, and collapses to icons
-- Workspaces that share logins, each with its own color
-- Private windows that skip history, suggestions, and saved passwords
+### Tabs
 
-**Settings**
+Horizontal tabs, with the address bar underneath. Suggestions come from bookmarks and history as you type.
 
-- Dark or light appearance
-- Accent color
-- Session restore
-- Ad and tracker blocking, on or off
+</td>
+<td width="33%" valign="top">
 
-**Local data**
+### Sidebar
 
-- Bookmarks, history, and downloads stored on this computer
-- Passwords saved only on this computer, locked with a Cove password or this computer’s sign-in
-- On a Mac, the vault can also unlock with Touch ID, and a sign-in or Touch ID vault keeps its key in the login keychain
-- On Windows, sign-in unlock uses DPAPI for the current user
+A slim sidebar docks on the left, right, or bottom, and collapses to icons.
 
-**While you browse**
+</td>
+<td width="33%" valign="top">
 
-- Built-in ad and tracker blocking, with a one-click allow for the current site
-- A memory cap that puts background tabs to sleep
-- Fullscreen video that hides the sidebar and the top bar
-- A pop-out button on a video while the pointer is over it
-- Unpacked extensions from a folder that contains `manifest.json`
+### Workspaces
 
-Cove runs an extension’s content scripts. Chrome extension APIs and background pages are not available.
+Workspaces share logins. Each one has its own color.
 
-## Requirements
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
 
-### macOS
+### Private windows
 
-- macOS 12.3 or later
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- Xcode command line tools (`xcrun`, `clang`)
+A private window skips history, suggestions, and saved passwords.
 
-### Windows
+</td>
+<td width="33%" valign="top">
 
-- Windows 10 or later
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
+### Appearance
+
+Dark or light, plus an accent color. Session restore and blocking are settings too.
+
+</td>
+<td width="33%" valign="top">
+
+### Blocking
+
+Built-in ad and tracker blocking, with a one-click allow for the current site.
+
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+### Password vault
+
+Passwords stay on this computer, locked with a Cove password or this computer's sign-in. On a Mac, Touch ID works too.
+
+</td>
+<td width="33%" valign="top">
+
+### Light on memory
+
+A memory cap puts background tabs to sleep.
+
+</td>
+<td width="33%" valign="top">
+
+### Video
+
+Fullscreen video hides the sidebar and the top bar. Hover a video to pop it out.
+
+</td>
+</tr>
+</table>
+
+Unpacked extensions load from a folder that contains `manifest.json`. Cove runs their content scripts. Chrome extension APIs and background pages are not available.
+
+<div align="center">
+
+![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white)
+![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
+![WebKit](https://img.shields.io/badge/WebKit-000000?style=for-the-badge&logo=safari&logoColor=white)
+![WebView2](https://img.shields.io/badge/WebView2-0078D4?style=for-the-badge&logo=microsoftedge&logoColor=white)
+
+</div>
+
+## Platforms
+
+| | Engine | Status |
+| --- | --- | --- |
+| **macOS** 12.3 or later | System WebKit | ![supported](https://img.shields.io/badge/supported-FF5A36?style=flat-square) |
+| **Windows** 10 or later | Edge WebView2 | ![supported](https://img.shields.io/badge/supported-FF5A36?style=flat-square) |
+| **Linux** | — | ![planned](https://img.shields.io/badge/planned-2A2D34?style=flat-square) |
+| **Mobile** | — | ![planned](https://img.shields.io/badge/planned-2A2D34?style=flat-square) |
+
+On a Mac, a vault unlocked with sign-in or Touch ID keeps its key in the login keychain. On Windows, sign-in unlock uses DPAPI for the current user.
 
 ## Run
 
-On the `mac` branch:
+```text
+cove@mac      ~/Cove   mac branch     WebKit
+cove@windows  ~/Cove   mac branch     WebView2
+```
+
+**macOS and Windows** (`mac` branch):
 
 ```bash
 dotnet run --project Cove.csproj
 ```
 
-If `dotnet` is not on your PATH on a Mac:
+<details>
+<summary>dotnet is not on your PATH on a Mac</summary>
+
+<br/>
 
 ```bash
 export PATH="$HOME/.dotnet:$PATH"
@@ -81,17 +161,44 @@ dotnet run --project Cove.csproj
 
 The first macOS build compiles `native/cove_webkit.m` into `libCoveWebKit.dylib`.
 
-On the `master` branch, Windows only:
+</details>
+
+**Windows only** (`master`):
 
 ```powershell
 dotnet run --project Cove.csproj
 ```
 
-## Where data lives
+### Requirements
 
-| System | Folder |
+| | macOS | Windows |
+| --- | --- | --- |
+| System | macOS 12.3+ | Windows 10+ |
+| SDK | [.NET 10](https://dotnet.microsoft.com/download) | [.NET 10](https://dotnet.microsoft.com/download) |
+| Also | Xcode command line tools (`xcrun`, `clang`) | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) |
+
+## Data
+
+Nothing leaves the machine.
+
+| | Folder |
 | --- | --- |
 | macOS | `~/Library/Application Support/Cove` |
 | Windows | `%LOCALAPPDATA%\Cove` |
 
-That folder holds the session and the password vault. The WebView2 profile on Windows lives there too. Nothing leaves the machine.
+That folder holds the session and the password vault. On Windows, the WebView2 profile lives there too.
+
+## Roadmap
+
+```text
+[ ready   ] macOS      system WebKit
+[ ready   ] Windows    Edge WebView2
+[ planned ] Linux
+[ planned ] Mobile
+```
+
+<div align="center">
+
+**Private by default. Local by design.**
+
+</div>
