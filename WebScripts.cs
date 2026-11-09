@@ -2,6 +2,76 @@ namespace Cove;
 
 static class WebScripts
 {
+    public static string Document => Bridge + "\n" + Bootstrap;
+
+    public const string Bridge = """
+        (() => {
+          if (window.__coveBridge) return;
+          window.__coveBridge = true;
+          const listeners = [];
+          window.chrome = window.chrome || {};
+          window.chrome.webview = {
+            postMessage(msg) {
+              try { window.webkit.messageHandlers.cove.postMessage(JSON.stringify(msg)); } catch (e) {}
+            },
+            addEventListener(type, fn) {
+              if (type === "message" && typeof fn === "function") listeners.push(fn);
+            },
+            removeEventListener(type, fn) {
+              const index = listeners.indexOf(fn);
+              if (index >= 0) listeners.splice(index, 1);
+            }
+          };
+          window.__coveDeliver = (payload) => {
+            let data = payload;
+            if (typeof payload === "string") {
+              try { data = JSON.parse(payload); } catch (e) { return; }
+            }
+            for (const fn of listeners.slice()) {
+              try { fn({ data }); } catch (e) {}
+            }
+          };
+          window.__coveExtMatch = (patterns) => {
+            const scheme = location.protocol.replace(":", "");
+            const host = location.hostname;
+            const path = location.pathname || "/";
+            const web = scheme === "http" || scheme === "https";
+            return (patterns || []).some((pattern) => {
+              if (pattern === "<all_urls>" || pattern === "*://*/*") return web;
+              const match = /^(\*|https?):\/\/([^/]+)(\/.*)$/.exec(pattern);
+              if (!match) return false;
+              if (match[1] !== "*" && match[1] !== scheme) return false;
+              if (match[1] === "*" && !web) return false;
+              const hostPattern = match[2];
+              if (hostPattern !== "*") {
+                if (hostPattern.startsWith("*.")) {
+                  const rest = hostPattern.slice(2);
+                  if (host !== rest && !host.endsWith("." + rest)) return false;
+                } else if (host !== hostPattern) return false;
+              }
+              const escaped = match[3].replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*");
+              return new RegExp("^" + escaped + "$").test(path);
+            });
+          };
+          window.__coveExtRun = (spec) => {
+            const go = () => {
+              try {
+                if (!window.__coveExtMatch(spec.patterns || [])) return;
+                if (spec.css) {
+                  const style = document.createElement("style");
+                  style.textContent = spec.code || "";
+                  (document.head || document.documentElement).appendChild(style);
+                } else {
+                  (0, eval)(spec.code || "");
+                }
+              } catch (e) {}
+            };
+            if (spec.atEnd && document.readyState === "loading") document.addEventListener("DOMContentLoaded", go);
+            else go();
+          };
+        })();
+        """;
+
     public const string Bootstrap = """
         (() => {
           if (!window.__cove) {

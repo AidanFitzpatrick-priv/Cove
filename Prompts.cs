@@ -1,58 +1,51 @@
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 
 namespace Cove;
 
 static class Prompts
 {
-    public static bool Confirm(Window owner, string title, string message)
+    public static async Task<bool> Confirm(Window owner, string title, string message)
     {
         var win = Shell(owner, title, 360);
-        var text = new TextBlock
-        {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(16, 14, 16, 8),
-            Foreground = Brushes.White
-        };
-        var no = new Button { Content = "Cancel", Margin = new Thickness(0, 0, 8, 0), IsCancel = true, MinWidth = 88 };
-        var yes = new Button { Content = "Confirm", IsDefault = true, MinWidth = 88 };
-        yes.Click += (_, _) => { win.DialogResult = true; };
+        var text = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Margin = new Avalonia.Thickness(16, 14, 16, 8), Foreground = Brushes.White };
+        var no = new Button { Content = "Cancel", Margin = new Avalonia.Thickness(0, 0, 8, 0), MinWidth = 88 };
+        var yes = new Button { Content = "Confirm", MinWidth = 88 };
+        no.Click += (_, _) => win.Close(false);
+        yes.Click += (_, _) => win.Close(true);
         win.Content = Column(text, Buttons(no, yes));
-        return win.ShowDialog() == true;
+        return await win.ShowDialog<bool>(owner);
     }
 
-    public static string? Ask(Window owner, string title, string initial)
+    public static async Task<string?> Ask(Window owner, string title, string initial)
     {
         var win = Shell(owner, title, 380);
-        var box = new TextBox { Text = initial, Margin = new Thickness(16, 16, 16, 8), Padding = new Thickness(10, 8, 10, 8) };
-        var cancel = new Button { Content = "Cancel", Margin = new Thickness(0, 0, 8, 0), IsCancel = true, MinWidth = 88 };
-        var ok = new Button { Content = "Save", IsDefault = true, MinWidth = 88 };
+        var box = new TextBox { Text = initial, Margin = new Avalonia.Thickness(16, 16, 16, 8) };
+        var cancel = new Button { Content = "Cancel", Margin = new Avalonia.Thickness(0, 0, 8, 0), MinWidth = 88 };
+        var ok = new Button { Content = "Save", MinWidth = 88 };
+        cancel.Click += (_, _) => win.Close(null);
         ok.Click += (_, _) =>
         {
-            if (!string.IsNullOrWhiteSpace(box.Text)) win.DialogResult = true;
+            if (!string.IsNullOrWhiteSpace(box.Text)) win.Close(box.Text.Trim());
         };
         win.Content = Column(box, Buttons(cancel, ok));
-        win.Loaded += (_, _) => { box.Focus(); box.SelectAll(); };
-        return win.ShowDialog() == true ? box.Text.Trim() : null;
+        win.Opened += (_, _) => { box.Focus(); box.SelectAll(); };
+        return await win.ShowDialog<string?>(owner);
     }
 
     static Window Shell(Window owner, string title, double width) => new()
     {
-        Owner = owner,
         Title = title,
         Width = width,
         SizeToContent = SizeToContent.Height,
         WindowStartupLocation = WindowStartupLocation.CenterOwner,
-        ResizeMode = ResizeMode.NoResize,
-        WindowStyle = WindowStyle.ToolWindow,
+        CanResize = false,
         Background = new SolidColorBrush(Color.FromRgb(0x16, 0x18, 0x1D)),
         Foreground = new SolidColorBrush(Color.FromRgb(0xF2, 0xF0, 0xEC))
     };
 
-    static StackPanel Column(UIElement body, UIElement buttons)
+    static StackPanel Column(Control body, Control buttons)
     {
         var panel = new StackPanel();
         panel.Children.Add(body);
@@ -66,7 +59,7 @@ static class Prompts
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(16, 4, 16, 16)
+            Margin = new Avalonia.Thickness(16, 4, 16, 16)
         };
         row.Children.Add(left);
         row.Children.Add(right);

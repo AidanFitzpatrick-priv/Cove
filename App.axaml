@@ -1,0 +1,114 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:Cove"
+             x:Class="Cove.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="Inter, -apple-system, sans-serif"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="#121316"/>
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#0E0F12"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource Ink}"/>
+            <Setter Property="BorderBrush" Value="#2A2D34"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#2A2D34"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#3A3D46"/>
+        </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Opacity" Value="0.38"/>
+        </Style>
+
+        <Style Selector="Button.icon">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="7"/>
+        </Style>
+        <Style Selector="Button.icon:pointerover">
+            <Setter Property="Background" Value="#2A2D34"/>
+        </Style>
+        <Style Selector="Button.rail">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="34"/>
+        </Style>
+
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.flat ListBoxItem">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.flat ListBoxItem:pointerover">
+            <Setter Property="Background" Value="#24262C"/>
+        </Style>
+        <Style Selector="ListBox.flat ListBoxItem:selected">
+            <Setter Property="Background" Value="#2E3138"/>
+        </Style>
+        <Style Selector="ListBox.tabs ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="ListBox.tabs ListBoxItem:pointerover">
+            <Setter Property="Background" Value="#24262C"/>
+        </Style>
+        <Style Selector="ListBox.tabs ListBoxItem:selected">
+            <Setter Property="Background" Value="#2E3138"/>
+        </Style>
+
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="{x:Static local:Theme.Accent}"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+    </Application.Styles>
+
+    <Application.Resources>
+        <SolidColorBrush x:Key="Ink" Color="#F2F0EC"/>
+        <SolidColorBrush x:Key="Muted" Color="#8D8A84"/>
+        <StreamGeometry x:Key="IconBack">M15.41,7.41 L14,6 L8,12 L14,18 L15.41,16.59 L10.83,12 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconForward">M8.59,7.41 L10,6 L16,12 L10,18 L8.59,16.59 L13.17,12 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconReload">M17.65,6.35 C16.2,4.9 14.21,4 12,4 C7.58,4 4.01,7.58 4.01,12 C4.01,16.42 7.58,20 12,20 C15.73,20 18.84,17.45 19.73,14 L17.65,14 C16.83,16.33 14.61,18 12,18 C8.69,18 6,15.31 6,12 C6,8.69 8.69,6 12,6 C13.66,6 15.14,6.69 16.22,7.78 L13,11 L20,11 L20,4 L17.65,6.35 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconAdd">M19,13 H13 V19 H11 V13 H5 V11 H11 V5 H13 V11 H19 V13 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconClose">M18.3,5.71 L16.89,4.3 L12,9.17 L7.11,4.3 L5.7,5.71 L10.59,10.6 L5.7,15.49 L7.11,16.9 L12,12.02 L16.89,16.9 L18.3,15.49 L13.41,10.6 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconStar">M12,17.27 L18.18,21 L16.54,13.97 L22,9.24 L14.81,8.63 L12,2 L9.19,8.63 L2,9.24 L7.45,13.97 L5.82,21 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconGrid">M4,4 H10 V10 H4 Z M14,4 H20 V10 H14 Z M4,14 H10 V20 H4 Z M14,14 H20 V20 H14 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconHistory">M13,3 A9,9 0 1 0 21.5,13 H19.4 A7,7 0 1 1 12,5 A7,7 0 0 1 17,7.1 L14,10 H21 V3 L18.2,5.8 A9,9 0 0 0 13,3 M12,8 V13 L16,15.2 L15,16.8 L10.5,14.2 V8 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconDownload">M5,20 H19 V18 H5 Z M12,16 L5,9 H9 V3 H15 V9 H19 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconKey">M7,14 A2,2 0 1 1 7,10 A2,2 0 0 1 7,14 M12.65,10 A5,5 0 1 0 7,15 C7.65,15 8.27,14.87 8.84,14.64 L10,16 H13 V19 H16 V16 H18 V13 L14.64,11.84 C14.87,11.27 15,10.65 15,10 H12.65 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconPuzzle">M20.5,11 H19 V7 C19,5.9 18.1,5 17,5 H13 V3.5 A2.5,2.5 0 0 0 10.5,1 A2.5,2.5 0 0 0 8,3.5 V5 H4 C2.9,5 2,5.9 2,7 V10.8 H3.5 C5,10.8 6.2,12 6.2,13.5 C6.2,15 5,16.2 3.5,16.2 H2 V20 C2,21.1 2.9,22 4,22 H7.8 V20.5 C7.8,19 9,17.8 10.5,17.8 C12,17.8 13.2,19 13.2,20.5 V22 H17 C18.1,22 19,21.1 19,20 V16 H20.5 A2.5,2.5 0 0 0 23,13.5 A2.5,2.5 0 0 0 20.5,11 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconMemory">M6,7 H8 V9 H6 Z M10,7 H12 V9 H10 Z M14,7 H16 V9 H14 Z M6,11 H8 V13 H6 Z M10,11 H12 V13 H10 Z M14,11 H16 V13 H14 Z M6,15 H8 V17 H6 Z M10,15 H12 V17 H10 Z M14,15 H16 V17 H14 Z M2,3 V21 H22 V3 Z M20,19 H4 V5 H20 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconShield">M12,1 L3,5 V11 C3,16.55 6.84,21.74 12,23 C17.16,21.74 21,16.55 21,11 V5 Z</StreamGeometry>
+    </Application.Resources>
+</Application>

@@ -1,9 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using Microsoft.Web.WebView2.Wpf;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
 
 namespace Cove;
 
@@ -26,19 +25,20 @@ sealed class TabVm : NotifyObject
 {
     string _title = "New tab";
     string _url = "";
-    ImageSource? _favicon;
+    Bitmap? _favicon;
     bool _sleeping;
     int _blocked;
 
+    public TabVm(PageSession page) => Page = page;
     public string Id { get; } = Guid.NewGuid().ToString("n");
-    public WebView2 View { get; } = new();
+    public PageSession Page { get; }
     public long LastActive { get; set; }
     public DateTimeOffset Seen { get; set; }
     public string PageHost { get; set; } = "";
 
     public string Title { get => _title; set => Set(ref _title, string.IsNullOrWhiteSpace(value) ? "New tab" : value); }
     public string Url { get => _url; set => Set(ref _url, value); }
-    public ImageSource? Favicon { get => _favicon; set => Set(ref _favicon, value); }
+    public Bitmap? Favicon { get => _favicon; set => Set(ref _favicon, value); }
     public bool IsSleeping { get => _sleeping; set => Set(ref _sleeping, value); }
     public int Blocked { get => _blocked; set => Set(ref _blocked, value); }
 }
@@ -76,9 +76,7 @@ sealed class WorkspaceVm : NotifyObject
     static Brush MakeBrush(string hex)
     {
         Theme.TryParse(hex, out var color, out _);
-        var brush = new SolidColorBrush(color);
-        brush.Freeze();
-        return brush;
+        return new SolidColorBrush(color);
     }
 }
 
@@ -91,11 +89,14 @@ sealed class DownloadVm : NotifyObject
 
     public string Name { get; set; } = "";
     public string Path { get; set; } = "";
+    public long Total { get; set; }
+    public int DownloadId { get; set; }
+    public Action? CancelDownload { get; set; }
+    public bool Settled { get; set; }
     public string Detail { get => _detail; set => Set(ref _detail, value); }
     public double Progress { get => _progress; set => Set(ref _progress, value); }
     public bool Indeterminate { get => _indeterminate; set => Set(ref _indeterminate, value); }
     public bool Running { get => _running; set => Set(ref _running, value); }
-    public Microsoft.Web.WebView2.Core.CoreWebView2DownloadOperation? Operation { get; set; }
 }
 
 sealed class AppState
@@ -118,6 +119,7 @@ sealed class AppState
     public List<Bookmark> Bookmarks { get; set; } = [];
     public List<HistoryEntry> History { get; set; } = [];
     public List<DownloadRecord> Downloads { get; set; } = [];
+    public List<string> ExtensionPaths { get; set; } = [];
 }
 
 sealed class WorkspaceState

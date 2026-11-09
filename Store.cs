@@ -41,6 +41,7 @@ sealed class Store
         state.Bookmarks ??= [];
         state.History ??= [];
         state.Downloads ??= [];
+        state.ExtensionPaths ??= [];
         if (state.RamCapMb < 512) state.RamCapMb = 4096;
         return new Store(state, root);
     }

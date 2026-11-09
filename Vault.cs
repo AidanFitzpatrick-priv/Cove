@@ -1,7 +1,5 @@
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 
@@ -12,19 +10,17 @@ sealed class Vault
     const int Iterations = 200_000;
     static readonly byte[] VerifierText = "cove-ok"u8.ToArray();
     readonly string _path;
-    readonly string _windowsPath;
     byte[]? _key;
     int _misses;
 
     public Vault(string root)
     {
         _path = Path.Combine(root, "vault.json");
-        _windowsPath = Path.Combine(root, "windows.key");
     }
 
     public bool Exists => File.Exists(_path);
     public bool IsUnlocked => _key is not null;
-    public bool HasWindowsUnlock => File.Exists(_windowsPath);
+    public bool HasWindowsUnlock => MacKeychain.Exists("Cove", "vault-key");
     public List<VaultEntry> Entries { get; } = [];
 
     public void Create(string password)
@@ -45,8 +41,7 @@ sealed class Vault
     public void EnableWindowsUnlock()
     {
         if (_key is null) return;
-        var blob = ProtectedData.Protect(_key, null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(_windowsPath, blob);
+        MacKeychain.Save("Cove", "vault-key", _key);
     }
 
     public bool Unlock(string password)
@@ -68,8 +63,8 @@ sealed class Vault
         if (!HasWindowsUnlock || !File.Exists(_path)) return false;
         try
         {
-            var key = ProtectedData.Unprotect(File.ReadAllBytes(_windowsPath), null, DataProtectionScope.CurrentUser);
-            return AcceptKey(Read(), key);
+            var key = MacKeychain.Load("Cove", "vault-key");
+            return key is not null && AcceptKey(Read(), key);
         }
         catch
         {
@@ -213,23 +208,3 @@ sealed class Vault
     }
 }
 
-static class WindowsSignIn
-{
-    public static bool Check(string password)
-    {
-        if (string.IsNullOrEmpty(password)) return false;
-        var name = WindowsIdentity.GetCurrent().Name;
-        var slash = name.IndexOf('\\');
-        var domain = slash > 0 ? name[..slash] : ".";
-        var user = slash > 0 ? name[(slash + 1)..] : name;
-        if (!LogonUser(user, domain, password, 3, 0, out var token)) return false;
-        CloseHandle(token);
-        return true;
-    }
-
-    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    static extern bool LogonUser(string user, string domain, string password, int type, int provider, out IntPtr token);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern bool CloseHandle(IntPtr handle);
-}

@@ -1,0 +1,234 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Cove"
+        x:Class="Cove.MainWindow"
+        Title="Cove"
+        Width="1280"
+        Height="820"
+        MinWidth="880"
+        MinHeight="560"
+        Background="#121316"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        UseLayoutRounding="True">
+    <Window.Resources>
+        <DataTemplate x:Key="TabTemplate">
+            <Grid Width="168" ColumnDefinitions="16,*,18">
+                <Image Width="14" Height="14" Source="{Binding Favicon}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="6,0,4,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="2" Classes="icon" Width="18" Height="18" Tag="{Binding}" Click="CloseTab_Click" ToolTip.Tip="Close tab">
+                    <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10"/>
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="WorkspaceTemplate">
+            <Grid ColumnDefinitions="16,*,22">
+                <Border Width="10" Height="10" CornerRadius="5" Background="{Binding Swatch}" HorizontalAlignment="Left" Tag="{Binding}" PointerReleased="CycleColor_Click" ToolTip.Tip="Change color"/>
+                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="2" Classes="icon" Width="18" Height="18" Tag="{Binding}" Click="DeleteWorkspace_Click" ToolTip.Tip="Remove workspace">
+                    <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10"/>
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="LinkTemplate">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding Url}" Foreground="#8D8A84" FontSize="11" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="HistoryTemplate">
+            <StackPanel>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="1" Text="{Binding When}" Foreground="#8D8A84" FontSize="11" Margin="8,0,0,0"/>
+                </Grid>
+                <TextBlock Text="{Binding Url}" Foreground="#8D8A84" FontSize="11" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="DownloadTemplate">
+            <StackPanel>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Classes="icon" Width="22" Height="22" Tag="{Binding}" Click="CancelDownload_Click" ToolTip.Tip="Cancel">
+                        <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10"/>
+                    </Button>
+                </Grid>
+                <ProgressBar Height="3" Margin="0,6,0,4" Value="{Binding Progress}" Maximum="100" IsIndeterminate="{Binding Indeterminate}" Foreground="{x:Static local:Theme.Accent}" Background="#2A2D34"/>
+                <TextBlock Text="{Binding Detail}" Foreground="#8D8A84" FontSize="11"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="MemoryTemplate">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                <StackPanel>
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontSize="12"/>
+                    <TextBlock Text="{Binding Kind}" Foreground="#6E6B66" FontSize="10"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="{Binding Amount}" Foreground="#8D8A84" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid x:Name="Shell">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid x:Name="TabChrome" Margin="78,0,8,0" Background="#121316" PointerPressed="Drag_PointerPressed">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <ListBox x:Name="TabList" Classes="tabs" HorizontalAlignment="Left" ItemTemplate="{StaticResource TabTemplate}" SelectionChanged="TabList_SelectionChanged" Background="Transparent">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                    </ListBox>
+                    <Button x:Name="NewTabButton" Classes="icon" ToolTip.Tip="New tab (⌘T)" Click="NewTab_Click">
+                        <PathIcon Data="{StaticResource IconAdd}" Width="14" Height="14"/>
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <Grid x:Name="Dock" Grid.Row="1">
+            <Border x:Name="SidebarShell" Background="#16181D" BorderBrush="#2A2D34" BorderThickness="0,0,1,0">
+                <Grid x:Name="SidebarGrid">
+                    <StackPanel x:Name="Rail">
+                        <Button x:Name="BrandButton" Content="C" ToolTip.Tip="Drag to the left, right, or bottom. Click to show or hide the panel." Cursor="SizeAll" FontWeight="SemiBold" FontSize="16" Foreground="{x:Static local:Theme.Accent}" Classes="icon rail" Height="40" PointerPressed="Brand_PointerPressed" PointerMoved="Brand_PointerMoved" PointerReleased="Brand_PointerReleased"/>
+                        <Button x:Name="RailWorkspaces" Classes="icon rail" ToolTip.Tip="Workspaces" Click="Rail_Click" Tag="workspaces">
+                            <PathIcon Data="{StaticResource IconGrid}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="RailBookmarks" Classes="icon rail" ToolTip.Tip="Bookmarks" Click="Rail_Click" Tag="bookmarks">
+                            <PathIcon Data="{StaticResource IconStar}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="RailHistory" Classes="icon rail" ToolTip.Tip="History" Click="Rail_Click" Tag="history">
+                            <PathIcon Data="{StaticResource IconHistory}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="RailDownloads" Classes="icon rail" ToolTip.Tip="Downloads" Click="Rail_Click" Tag="downloads">
+                            <PathIcon Data="{StaticResource IconDownload}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="RailPasswords" Classes="icon rail" ToolTip.Tip="Passwords" Click="Passwords_Click">
+                            <PathIcon Data="{StaticResource IconKey}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="RailExtensions" Classes="icon rail" ToolTip.Tip="Extensions" Click="Rail_Click" Tag="extensions">
+                            <PathIcon Data="{StaticResource IconPuzzle}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="RailLimiter" Classes="icon rail" ToolTip.Tip="Memory" Click="Rail_Click" Tag="limiter">
+                            <PathIcon Data="{StaticResource IconMemory}" Width="14" Height="14"/>
+                        </Button>
+                    </StackPanel>
+                    <Grid x:Name="PanelHost" Margin="0,4,6,6">
+                        <Grid x:Name="PanelWorkspaces" RowDefinitions="32,*,Auto">
+                            <TextBlock Text="Workspaces" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>
+                            <ListBox x:Name="WorkspaceList" Grid.Row="1" Classes="flat" ItemTemplate="{StaticResource WorkspaceTemplate}" SelectionChanged="WorkspaceList_SelectionChanged" DoubleTapped="WorkspaceList_DoubleTapped"/>
+                            <Button Grid.Row="2" Content="Add" Margin="2,6,2,0" Click="AddWorkspace_Click"/>
+                        </Grid>
+                        <Grid x:Name="PanelBookmarks" IsVisible="False" RowDefinitions="32,*,Auto">
+                            <TextBlock Text="Bookmarks" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>
+                            <ListBox x:Name="BookmarkList" Grid.Row="1" Classes="flat" ItemTemplate="{StaticResource LinkTemplate}" Tapped="Bookmark_Open"/>
+                            <Button Grid.Row="2" Content="Bookmark" Margin="2,6,2,0" Click="Bookmark_Click"/>
+                        </Grid>
+                        <Grid x:Name="PanelHistory" IsVisible="False" RowDefinitions="32,Auto,*,Auto">
+                            <TextBlock Text="History" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>
+                            <TextBox x:Name="HistorySearch" Grid.Row="1" Margin="4,0,4,8" TextChanged="HistorySearch_TextChanged"/>
+                            <ListBox x:Name="HistoryList" Grid.Row="2" Classes="flat" ItemTemplate="{StaticResource HistoryTemplate}" Tapped="History_Open"/>
+                            <Button Grid.Row="3" Content="Clear" Margin="2,6,2,0" Click="ClearHistory_Click"/>
+                        </Grid>
+                        <Grid x:Name="PanelDownloads" IsVisible="False" RowDefinitions="32,*">
+                            <TextBlock Text="Downloads" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>
+                            <ListBox x:Name="DownloadList" Grid.Row="1" Classes="flat" ItemTemplate="{StaticResource DownloadTemplate}" Tapped="Download_Open"/>
+                        </Grid>
+                        <Grid x:Name="PanelExtensions" IsVisible="False" RowDefinitions="32,Auto,Auto,*">
+                            <TextBlock Text="Extensions" VerticalAlignment="Center" Margin="4,0" FontSize="13" FontWeight="SemiBold"/>
+                            <TextBlock Grid.Row="1" Margin="4,0,4,8" Foreground="#8D8A84" FontSize="11" TextWrapping="Wrap" Text="Load an unpacked folder that contains manifest.json. Cove runs its content scripts. Chrome APIs and background pages are not available."/>
+                            <Button Grid.Row="2" Content="Load unpacked extension" Margin="2,0,2,8" Click="LoadExtension_Click"/>
+                            <ScrollViewer Grid.Row="3">
+                                <StackPanel x:Name="ExtensionHost" Margin="4,0,4,8"/>
+                            </ScrollViewer>
+                        </Grid>
+                        <Grid x:Name="PanelLimiter" IsVisible="False" RowDefinitions="Auto,*">
+                            <StackPanel Margin="4,8,4,0">
+                                <TextBlock Text="Memory" FontSize="13" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="RamLabel" Margin="0,8,0,6" Foreground="#8D8A84" TextWrapping="Wrap"/>
+                                <Slider x:Name="RamSlider" Minimum="1024" Maximum="16384" TickFrequency="256" IsSnapToTickEnabled="True"/>
+                                <TextBlock Margin="0,4,0,8" Foreground="#8D8A84" FontSize="11" TextWrapping="Wrap" Text="Background tabs sleep when Cove passes this cap. A tab playing audio stays awake."/>
+                            </StackPanel>
+                            <ListBox x:Name="MemoryList" Grid.Row="1" Classes="flat" ItemTemplate="{StaticResource MemoryTemplate}"/>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <GridSplitter x:Name="SidebarSplitter" Width="5" Background="#2A2D34" ResizeDirection="Columns" PointerReleased="SidebarSplitter_PointerReleased"/>
+
+            <Grid x:Name="Browser">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/>
+                    <RowDefinition Height="2"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid x:Name="AddressChrome" Background="#181A1F" PointerPressed="Drag_PointerPressed" ColumnDefinitions="Auto,*,Auto,Auto">
+                    <StackPanel Orientation="Horizontal" Margin="4,0,0,0" VerticalAlignment="Center">
+                        <Button x:Name="BackButton" Classes="icon" ToolTip.Tip="Back" Click="Back_Click">
+                            <PathIcon Data="{StaticResource IconBack}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="ForwardButton" Classes="icon" ToolTip.Tip="Forward" Click="Forward_Click">
+                            <PathIcon Data="{StaticResource IconForward}" Width="14" Height="14"/>
+                        </Button>
+                        <Button x:Name="ReloadButton" Classes="icon" ToolTip.Tip="Reload" Click="Reload_Click">
+                            <PathIcon Data="{StaticResource IconReload}" Width="14" Height="14"/>
+                        </Button>
+                    </StackPanel>
+                    <Border Grid.Column="1" Margin="4,6" Background="#0E0F12" BorderBrush="#2A2D34" BorderThickness="1" CornerRadius="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox x:Name="AddressBox" Background="Transparent" BorderThickness="0" Padding="12,0" VerticalContentAlignment="Center" KeyDown="AddressBox_KeyDown" GotFocus="AddressBox_GotFocus"/>
+                            <Button x:Name="StarButton" Grid.Column="1" Classes="icon" ToolTip.Tip="Bookmark this page" Click="Bookmark_Click">
+                                <PathIcon Data="{StaticResource IconStar}" Width="14" Height="14"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="PrivateBadge" Grid.Column="2" IsVisible="False" Margin="0,0,4,0" VerticalAlignment="Center" Background="#2A2440" CornerRadius="8" Padding="8,3">
+                        <TextBlock Text="Private" Foreground="#C4B5FD" FontSize="11"/>
+                    </Border>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0">
+                        <TextBlock x:Name="StatusNote" VerticalAlignment="Center" Foreground="#8D8A84" FontSize="11" Margin="0,0,6,0" IsVisible="False" MaxWidth="160" TextTrimming="CharacterEllipsis"/>
+                        <Button x:Name="ShieldButton" Height="28" MinWidth="28" Padding="8,0" Margin="0,0,4,0" Background="#2A2D34" ToolTip.Tip="Click to allow this site. Right-click to pause blocking everywhere." Click="Shield_Click" PointerPressed="Shield_PointerPressed">
+                            <StackPanel Orientation="Horizontal">
+                                <PathIcon Data="{StaticResource IconShield}" Width="13" Height="13"/>
+                                <TextBlock x:Name="ShieldCount" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" IsVisible="False"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <ProgressBar x:Name="Progress" Grid.Row="1" Height="2" IsIndeterminate="True" IsVisible="False" Foreground="{x:Static local:Theme.Accent}"/>
+
+                <Border x:Name="SaveBar" Grid.Row="2" Background="#241814" IsVisible="False" Padding="12,8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock x:Name="SaveText" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="Not now" Margin="0,0,8,0" Click="SaveNotNow_Click"/>
+                            <Button Content="Never" Margin="0,0,8,0" Click="SaveNever_Click"/>
+                            <Button Content="Save" Click="SavePassword_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="3" Background="#121316">
+                    <local:WebHostView x:Name="WebSurface" IsVisible="False"/>
+                    <StackPanel x:Name="BootPanel" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock x:Name="BootText" Text="Starting Cove…" Foreground="#8D8A84"/>
+                        <Button x:Name="BootButton" Content="Try again" Margin="0,12,0,0" IsVisible="False" Click="BootButton_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
