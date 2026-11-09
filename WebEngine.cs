@@ -85,16 +85,22 @@ static class WebEngine
         WebScripts.ForceDarkPages = enabled;
         RebuildScript();
         foreach (var page in Snapshot()) page.SetScript(_script);
-        if (OperatingSystem.IsWindows()) ApplyPreferredSchemeWindows();
+        ApplyForceDark();
     }
 
-    public static void ApplyPreferredColorScheme()
+    public static void ApplyPreferredColorScheme() => ApplyForceDark();
+
+    public static void ApplyForceDark()
     {
-        if (OperatingSystem.IsWindows()) ApplyPreferredSchemeWindows();
+        if (OperatingSystem.IsWindows()) ApplyForceDarkWindows();
+        else if (OperatingSystem.IsMacOS()) ApplyForceDarkMac();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    static void ApplyPreferredSchemeWindows() => WinBackend.ApplyPreferredColorScheme();
+    static void ApplyForceDarkWindows() => WinBackend.ApplyPreferredColorScheme();
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void ApplyForceDarkMac() => MacBackend.SetForceDark(WebScripts.ForceDarkPages);
 
     public static Task ApplyBlocking(bool enabled, IReadOnlyCollection<string> allow)
     {

@@ -18,6 +18,7 @@ static class MacBackend
     public static void Fit(IntPtr container) => Native.Fit(container);
     public static IntPtr CreatePrivateStore() => Native.PrivateStore();
     public static void ReleaseStore(IntPtr store) => Native.Release(store);
+    public static void SetForceDark(bool enabled) => Native.SetForceDark(enabled ? 1 : 0);
 
     public static Task ApplyBlocking(bool enabled, IReadOnlyCollection<string> allow)
     {
@@ -251,12 +252,14 @@ static partial class Native
     {
         cove_init();
         cove_set_pages_dir(pagesDirectory);
+        cove_set_force_dark(WebScripts.ForceDarkPages ? 1 : 0);
     }
 
     public static IntPtr CreateContainer() => cove_container_create();
     public static void Release(IntPtr obj) { if (obj != IntPtr.Zero) cove_release(obj); }
     public static void Fit(IntPtr container) => cove_surface_fit(container);
     public static IntPtr PrivateStore() => cove_private_store();
+    public static void SetForceDark(int enabled) => cove_set_force_dark(enabled);
     public static int LoginCheck(string password) => cove_login_check(password);
     public static int KeychainSave(string service, string account, IntPtr bytes, int length) => cove_keychain_save(service, account, bytes, length);
     public static IntPtr KeychainLoad(string service, string account, out int length) => cove_keychain_load(service, account, out length);
@@ -381,6 +384,7 @@ static partial class Native
 
     [DllImport(Lib)] static extern void cove_init();
     [DllImport(Lib)] static extern void cove_set_pages_dir(string path);
+    [DllImport(Lib)] static extern void cove_set_force_dark(int enabled);
     [DllImport(Lib)] static extern IntPtr cove_container_create();
     [DllImport(Lib)] static extern void cove_release(IntPtr obj);
     [DllImport(Lib)] static extern void cove_surface_fit(IntPtr container);

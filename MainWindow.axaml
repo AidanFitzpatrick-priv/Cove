@@ -179,6 +179,7 @@
                                 <CheckBox x:Name="RestoreSessionCheck" Content="Reopen windows and tabs from last time"/>
                                 <CheckBox x:Name="AdBlockCheck" Content="Block ads and trackers"/>
                                 <CheckBox x:Name="ForceDarkCheck" Content="Force dark mode on web pages"/>
+                                <TextBlock Text="Uses the browser engine’s dark theme (WebKit appearance / WebView2 auto-dark). Sites without a dark theme may stay light." TextWrapping="Wrap" Foreground="{x:Static local:Theme.Muted}" FontSize="11" Margin="28,2,0,0"/>
                                 <TextBlock Margin="0,8,0,0" Foreground="{x:Static local:Theme.Muted}" FontSize="11" TextWrapping="Wrap" Text="Passwords and browsing data stay on this computer. Force dark applies on the next page load."/>
                             </StackPanel>
                         </ScrollViewer>

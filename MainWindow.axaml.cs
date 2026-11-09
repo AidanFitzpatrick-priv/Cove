@@ -61,6 +61,9 @@ public partial class MainWindow : Window
     bool _suggestOpen;
     int _suggestIndex = -1;
     List<SuggestRow> _suggestions = [];
+    TabVm? _tabDrag;
+    Point _tabDragOrigin;
+    bool _tabDragging;
 
     public MainWindow() : this(false) { }
 
@@ -126,6 +129,9 @@ public partial class MainWindow : Window
         RefreshHistory();
         AddHandler(KeyDownEvent, OnPreviewKey, RoutingStrategies.Tunnel);
         TabList.AddHandler(PointerPressedEvent, TabList_PointerPressed, RoutingStrategies.Tunnel);
+        TabList.AddHandler(PointerMovedEvent, TabList_PointerMoved, RoutingStrategies.Tunnel);
+        TabList.AddHandler(PointerReleasedEvent, TabList_PointerReleased, RoutingStrategies.Tunnel);
+        TabList.AddHandler(PointerCaptureLostEvent, TabList_PointerCaptureLost, RoutingStrategies.Direct);
         PositionChanged += (_, _) => CaptureNormal();
         Loaded += async (_, _) =>
         {
@@ -192,7 +198,9 @@ public partial class MainWindow : Window
             {
                 if (IsWeb(open.Url)) open.Page.Reload();
             }
-            Note(_state.ForceDarkPages ? "Force dark is on." : "Force dark is off.");
+            Note(_state.ForceDarkPages
+                ? "Force dark on — uses the engine dark theme (not page invert)."
+                : "Force dark is off.");
             ScheduleSave();
         };
     }
@@ -1516,13 +1524,87 @@ public partial class MainWindow : Window
 
     void TabList_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!e.GetCurrentPoint(TabList).Properties.IsMiddleButtonPressed) return;
         if (e.Source is not StyledElement source) return;
-        if (Ancestor<ListBoxItem>(source)?.DataContext is TabVm tab)
+        var point = e.GetCurrentPoint(TabList);
+        if (point.Properties.IsMiddleButtonPressed)
         {
-            CloseTab(tab);
+            if (Ancestor<ListBoxItem>(source)?.DataContext is TabVm middle)
+            {
+                CloseTab(middle);
+                e.Handled = true;
+            }
+            return;
+        }
+        if (!point.Properties.IsLeftButtonPressed) return;
+        if (Ancestor<Button>(source) is not null) return;
+        if (Ancestor<ListBoxItem>(source)?.DataContext is not TabVm tab) return;
+        _tabDrag = tab;
+        _tabDragOrigin = point.Position;
+        _tabDragging = false;
+    }
+
+    void TabList_PointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_tabDrag is null || _current is null) return;
+        if (!e.GetCurrentPoint(TabList).Properties.IsLeftButtonPressed)
+        {
+            EndTabDrag();
+            return;
+        }
+        var pos = e.GetPosition(TabList);
+        if (!_tabDragging)
+        {
+            if (Math.Abs(pos.X - _tabDragOrigin.X) < 6 && Math.Abs(pos.Y - _tabDragOrigin.Y) < 6) return;
+            _tabDragging = true;
+            e.Pointer.Capture(TabList);
+            TabList.Cursor = new Cursor(StandardCursorType.SizeWestEast);
+        }
+        var target = TabAt(pos);
+        if (target is null || ReferenceEquals(target, _tabDrag)) return;
+        var tabs = _current.Tabs;
+        var from = tabs.IndexOf(_tabDrag);
+        var to = tabs.IndexOf(target);
+        if (from < 0 || to < 0 || from == to) return;
+        _switching = true;
+        tabs.Move(from, to);
+        _current.ActiveIndex = tabs.IndexOf(_tabDrag);
+        TabList.SelectedItem = _tabDrag;
+        _switching = false;
+        e.Handled = true;
+    }
+
+    void TabList_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_tabDrag is null) return;
+        var moved = _tabDragging;
+        if (e.Pointer.Captured == TabList) e.Pointer.Capture(null);
+        EndTabDrag();
+        if (moved)
+        {
+            ScheduleSave();
             e.Handled = true;
         }
+    }
+
+    void TabList_PointerCaptureLost(object? sender, PointerCaptureLostEventArgs e) => EndTabDrag();
+
+    void EndTabDrag()
+    {
+        _tabDrag = null;
+        _tabDragging = false;
+        TabList.Cursor = Cursor.Default;
+    }
+
+    TabVm? TabAt(Point pos)
+    {
+        foreach (var item in TabList.GetRealizedContainers())
+        {
+            if (item is not ListBoxItem { DataContext: TabVm tab }) continue;
+            var topLeft = item.TranslatePoint(new Point(0, 0), TabList);
+            if (topLeft is null) continue;
+            if (new Rect(topLeft.Value, item.Bounds.Size).Contains(pos)) return tab;
+        }
+        return null;
     }
 
     void AddressBox_KeyDown(object? sender, KeyEventArgs e)

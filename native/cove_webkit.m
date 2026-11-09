@@ -19,8 +19,12 @@ typedef struct CovePageCallbacks {
     void (*crashed)(void *ctx);
 } CovePageCallbacks;
 
+@class CovePageBox;
 static NSString *PagesDir;
+static BOOL ForceDarkPages = NO;
+static NSHashTable *LivePages;
 static const void *CoveDownloadKey = &CoveDownloadKey;
+static void ApplyForceDark(WKWebView *webView);
 
 static void OnMain(void (^block)(void)) {
     if ([NSThread isMainThread]) block();
@@ -294,11 +298,32 @@ static void InstallScript(CovePageBox *page, NSString *source) {
 void cove_init(void) {
     OnMain(^{
         [NSApplication sharedApplication];
+        if (!LivePages) LivePages = [NSHashTable weakObjectsHashTable];
     });
 }
 
 void cove_set_pages_dir(const char *path) {
     PagesDir = path ? [NSString stringWithUTF8String:path] : nil;
+}
+
+static void ApplyForceDark(WKWebView *webView) {
+    if (!webView) return;
+    if (ForceDarkPages) {
+        webView.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+        webView.underPageBackgroundColor = [NSColor colorWithSRGBRed:0x12 / 255.0 green:0x13 / 255.0 blue:0x16 / 255.0 alpha:1];
+    } else {
+        webView.appearance = nil;
+    }
+}
+
+void cove_set_force_dark(int enabled) {
+    OnMain(^{
+        ForceDarkPages = enabled ? YES : NO;
+        if (!LivePages) return;
+        for (CovePageBox *page in LivePages) {
+            ApplyForceDark(page.webView);
+        }
+    });
 }
 
 void *cove_container_create(void) {
@@ -382,7 +407,10 @@ static CovePageBox *CreatePage(int isPrivate, void *store, void *rules, const ch
     webView.allowsMagnification = YES;
     if (@available(macOS 13.3, *)) webView.inspectable = YES;
     webView.underPageBackgroundColor = [NSColor colorWithSRGBRed:0x12 / 255.0 green:0x13 / 255.0 blue:0x16 / 255.0 alpha:1];
+    ApplyForceDark(webView);
     page.webView = webView;
+    if (!LivePages) LivePages = [NSHashTable weakObjectsHashTable];
+    [LivePages addObject:page];
     [webView addObserver:delegate forKeyPath:@"title" options:NSKeyValueObservingOptionNew context:NULL];
     page.observingTitle = YES;
     [page show:NO];
@@ -407,6 +435,7 @@ void cove_page_destroy(void *ptr) {
     if (!ptr) return;
     OnMain(^{
         CovePageBox *page = (__bridge_transfer CovePageBox *)ptr;
+        [LivePages removeObject:page];
         if (page.observingTitle) {
             @try { [page.webView removeObserver:page.delegate forKeyPath:@"title"]; }
             @catch (__unused NSException *ex) {}

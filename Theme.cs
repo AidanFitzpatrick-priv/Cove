@@ -17,6 +17,9 @@ static class Theme
     public static readonly SolidColorBrush Hover = new(Color.FromRgb(0x24, 0x26, 0x2C));
     public static readonly SolidColorBrush Selected = new(Color.FromRgb(0x2E, 0x31, 0x38));
     public static readonly SolidColorBrush ButtonFace = new(Color.FromRgb(0x2A, 0x2D, 0x34));
+    public static readonly SolidColorBrush TabIdle = new(Color.FromArgb(0x1A, 0xFF, 0x5A, 0x36));
+    public static readonly SolidColorBrush TabActive = new(Color.FromArgb(0x88, 0xFF, 0x5A, 0x36));
+    public static readonly SolidColorBrush TabHover = new(Color.FromArgb(0x4D, 0xFF, 0x5A, 0x36));
 
     public static string AccentHex { get; private set; } = "#FF5A36";
     public static string Appearance { get; private set; } = "dark";
@@ -32,6 +35,18 @@ static class Theme
         if (!TryParse(hex, out var color, out var normalized)) return;
         AccentHex = normalized;
         Accent.Color = color;
+        RefreshTabAccents();
+    }
+
+    static void RefreshTabAccents()
+    {
+        var accent = Accent.Color;
+        var idleAlpha = (byte)(IsLight() ? 0x24 : 0x22);
+        var hoverAlpha = (byte)(IsLight() ? 0x55 : 0x4D);
+        var activeAlpha = (byte)(IsLight() ? 0x99 : 0x88);
+        TabIdle.Color = Color.FromArgb(idleAlpha, accent.R, accent.G, accent.B);
+        TabHover.Color = Color.FromArgb(hoverAlpha, accent.R, accent.G, accent.B);
+        TabActive.Color = Color.FromArgb(activeAlpha, accent.R, accent.G, accent.B);
     }
 
     public static void ApplyAppearance(string? mode)
@@ -100,7 +115,11 @@ static class Theme
             resources["Hover"] = Hover;
             resources["Selected"] = Selected;
             resources["ButtonFace"] = ButtonFace;
+            resources["TabIdle"] = TabIdle;
+            resources["TabActive"] = TabActive;
+            resources["TabHover"] = TabHover;
         }
+        RefreshTabAccents();
     }
 
     public static bool IsLight()

@@ -64,7 +64,7 @@ static class WinBackend
     {
         foreach (var page in WebEngine.Snapshot())
         {
-            if (page is WinPageSession win) win.ApplyPreferredColorScheme();
+            if (page is WinPageSession win) win.ApplyForceDark();
         }
     }
 
@@ -200,7 +200,7 @@ sealed class WinPageSession : PageSession
         }
     }
 
-    public void ApplyPreferredColorScheme()
+    public void ApplyForceDark()
     {
         try
         {
@@ -210,6 +210,21 @@ sealed class WinPageSession : PageSession
         catch
         {
             // Older runtimes don't expose preferred color scheme.
+        }
+        if (_core is not null) _ = ApplyAutoDarkAsync(_core);
+    }
+
+    static async Task ApplyAutoDarkAsync(CoreWebView2 core)
+    {
+        try
+        {
+            // Chromium auto-dark via CDP — solid alternative to CSS invert hacks.
+            var json = WebScripts.ForceDarkPages ? "{\"enabled\":true}" : "{\"enabled\":false}";
+            await core.CallDevToolsProtocolMethodAsync("Emulation.setAutoDarkModeOverride", json);
+        }
+        catch (Exception ex)
+        {
+            App.Log("webview2 auto-dark: " + ex.Message);
         }
     }
 
@@ -447,6 +462,7 @@ sealed class WinPageSession : PageSession
         catch { /* Older runtimes don't expose the profile. */ }
         try { core.Profile.PreferredColorScheme = WinBackend.PreferredScheme; }
         catch { /* Older runtimes don't expose preferred color scheme. */ }
+        await ApplyAutoDarkAsync(core);
 
         core.SetVirtualHostNameToFolderMapping(WinBackend.VirtualHostName, WebEngine.PagesDirectory, CoreWebView2HostResourceAccessKind.Allow);
 
