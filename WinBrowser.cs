@@ -55,6 +55,19 @@ static class WinBackend
         _adsOn = enabled;
     }
 
+    public static CoreWebView2PreferredColorScheme PreferredScheme =>
+        WebScripts.ForceDarkPages || !Theme.IsLight()
+            ? CoreWebView2PreferredColorScheme.Dark
+            : CoreWebView2PreferredColorScheme.Light;
+
+    public static void ApplyPreferredColorScheme()
+    {
+        foreach (var page in WebEngine.Snapshot())
+        {
+            if (page is WinPageSession win) win.ApplyPreferredColorScheme();
+        }
+    }
+
     /// <summary>Private windows get their own in-private profile name, carried as a GC handle.</summary>
     public static IntPtr CreatePrivateStore() =>
         GCHandle.ToIntPtr(GCHandle.Alloc("cove-private-" + Guid.NewGuid().ToString("N")));
@@ -184,6 +197,19 @@ sealed class WinPageSession : PageSession
         catch (Exception ex)
         {
             App.Log("webview2 layout: " + ex.Message);
+        }
+    }
+
+    public void ApplyPreferredColorScheme()
+    {
+        try
+        {
+            if (_core?.Profile is { } profile)
+                profile.PreferredColorScheme = WinBackend.PreferredScheme;
+        }
+        catch
+        {
+            // Older runtimes don't expose preferred color scheme.
         }
     }
 
@@ -419,6 +445,8 @@ sealed class WinPageSession : PageSession
         settings.IsGeneralAutofillEnabled = false;
         try { core.Profile.PreferredTrackingPreventionLevel = CoreWebView2TrackingPreventionLevel.Balanced; }
         catch { /* Older runtimes don't expose the profile. */ }
+        try { core.Profile.PreferredColorScheme = WinBackend.PreferredScheme; }
+        catch { /* Older runtimes don't expose preferred color scheme. */ }
 
         core.SetVirtualHostNameToFolderMapping(WinBackend.VirtualHostName, WebEngine.PagesDirectory, CoreWebView2HostResourceAccessKind.Allow);
 

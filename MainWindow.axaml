@@ -232,17 +232,24 @@
 
                 <ProgressBar x:Name="Progress" Grid.Row="1" Height="2" IsIndeterminate="True" IsVisible="False" Foreground="{x:Static local:Theme.Accent}"/>
 
-                <Border x:Name="SuggestPopup" Grid.Row="2" IsVisible="False" Background="{x:Static local:Theme.Panel}" BorderBrush="{x:Static local:Theme.Line}" BorderThickness="0,0,0,1" MaxHeight="260">
-                    <ListBox x:Name="SuggestList" Classes="flat" MaxHeight="260" Margin="42,4,120,6" PointerPressed="SuggestList_PointerPressed">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="2,4">
-                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding Url}" Foreground="{x:Static local:Theme.Muted}" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                <Border x:Name="SuggestPopup" Grid.Row="2" IsVisible="False" Background="{x:Static local:Theme.Chrome}" Padding="42,0,120,8">
+                    <Border Background="{x:Static local:Theme.Panel}" BorderBrush="{x:Static local:Theme.Line}" BorderThickness="1" CornerRadius="12" BoxShadow="0 12 28 0 #66000000" MaxHeight="280">
+                        <ListBox x:Name="SuggestList" Classes="flat" MaxHeight="272" Margin="4" PointerPressed="SuggestList_PointerPressed">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,*" Margin="6,6">
+                                        <Border Background="{x:Static local:Theme.Field}" BorderBrush="{x:Static local:Theme.Line}" BorderThickness="1" CornerRadius="8" Padding="7,2" VerticalAlignment="Top" Margin="0,1,10,0">
+                                            <TextBlock Text="{Binding Kind}" FontSize="10" Foreground="{x:Static local:Theme.Muted}"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Url}" Foreground="{x:Static local:Theme.Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
                 </Border>
 
                 <Border x:Name="SaveBar" Grid.Row="3" Background="#241814" IsVisible="False" Padding="12,8">

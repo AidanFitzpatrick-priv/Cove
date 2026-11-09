@@ -16,23 +16,127 @@ static class WebScripts
     public const string ForceDark = """
         (() => {
           if (window.__coveForceDark) return;
+          const host = (location.hostname || "").toLowerCase();
+          const scheme = (location.protocol || "").toLowerCase();
+          if (host === "cove.local" || scheme === "cove:" || scheme === "about:" || scheme === "blob:" || scheme === "data:") return;
           window.__coveForceDark = true;
+
+          const ensureMeta = () => {
+            let meta = document.querySelector('meta[name="color-scheme"]');
+            if (!meta) {
+              meta = document.createElement("meta");
+              meta.name = "color-scheme";
+              (document.head || document.documentElement).prepend(meta);
+            }
+            meta.content = "dark";
+            try { document.documentElement.style.setProperty("color-scheme", "dark", "important"); } catch (e) {}
+          };
+
+          const parseColor = (value) => {
+            if (!value || value === "transparent" || value === "rgba(0, 0, 0, 0)") return null;
+            const canvas = document.createElement("canvas");
+            canvas.width = canvas.height = 1;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            if (!ctx) return null;
+            ctx.fillStyle = "#000";
+            ctx.fillStyle = value;
+            if (typeof ctx.fillStyle !== "string") return null;
+            ctx.fillRect(0, 0, 1, 1);
+            const data = ctx.getImageData(0, 0, 1, 1).data;
+            return { r: data[0], g: data[1], b: data[2], a: data[3] / 255 };
+          };
+
+          const luminance = (c) => {
+            const lin = (v) => {
+              v /= 255;
+              return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            };
+            return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+          };
+
+          const pageLooksLight = () => {
+            const roots = [document.documentElement, document.body].filter(Boolean);
+            for (const el of roots) {
+              const style = getComputedStyle(el);
+              const bg = parseColor(style.backgroundColor);
+              if (bg && bg.a > 0.6) return luminance(bg) > 0.72;
+            }
+            const probe = document.querySelector("main, #content, #app, .content, article, body > div");
+            if (probe) {
+              const bg = parseColor(getComputedStyle(probe).backgroundColor);
+              if (bg && bg.a > 0.6) return luminance(bg) > 0.72;
+            }
+            return true;
+          };
+
           const css = `
-            html { color-scheme: dark !important; }
-            html, :root { background-color: #121212 !important; }
-            html { filter: invert(1) hue-rotate(180deg) !important; }
-            img, picture, video, canvas, svg, embed, object, iframe,
-            [style*="background-image"] { filter: invert(1) hue-rotate(180deg) !important; }
+            html.cove-force-dark {
+              color-scheme: dark !important;
+              background-color: #0f1012 !important;
+              filter: invert(0.92) hue-rotate(180deg) contrast(0.96) saturate(0.92) !important;
+            }
+            html.cove-force-dark body {
+              background-color: transparent !important;
+            }
+            html.cove-force-dark img,
+            html.cove-force-dark picture,
+            html.cove-force-dark video,
+            html.cove-force-dark canvas,
+            html.cove-force-dark svg,
+            html.cove-force-dark embed,
+            html.cove-force-dark object,
+            html.cove-force-dark iframe,
+            html.cove-force-dark [style*="background-image"],
+            html.cove-force-dark [style*="background:url"],
+            html.cove-force-dark [style*="background: url"] {
+              filter: invert(1) hue-rotate(180deg) contrast(1.02) !important;
+            }
+            html.cove-force-dark-soft {
+              color-scheme: dark !important;
+              background-color: #0f1012 !important;
+            }
+            html.cove-force-dark-soft body {
+              background-color: #0f1012 !important;
+              color: #e8e6e3 !important;
+            }
+            html.cove-force-dark-soft a { color: #8ab4ff !important; }
+            html.cove-force-dark-soft input,
+            html.cove-force-dark-soft textarea,
+            html.cove-force-dark-soft select,
+            html.cove-force-dark-soft button {
+              background-color: #1c1e24 !important;
+              color: #e8e6e3 !important;
+              border-color: #3a3d46 !important;
+            }
           `;
-          const inject = () => {
+
+          const ensureStyle = () => {
             if (document.getElementById("__cove-force-dark")) return;
             const style = document.createElement("style");
             style.id = "__cove-force-dark";
             style.textContent = css;
-            (document.documentElement || document.head || document.body).appendChild(style);
+            (document.head || document.documentElement).appendChild(style);
           };
-          inject();
-          new MutationObserver(inject).observe(document.documentElement, { childList: true, subtree: true });
+
+          const apply = () => {
+            ensureMeta();
+            ensureStyle();
+            const root = document.documentElement;
+            if (!root) return;
+            const light = pageLooksLight();
+            root.classList.toggle("cove-force-dark", light);
+            root.classList.toggle("cove-force-dark-soft", !light);
+          };
+
+          apply();
+          const run = () => { try { apply(); } catch (e) {} };
+          if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run, { once: true });
+          window.addEventListener("load", run, { once: true });
+          setTimeout(run, 400);
+          setTimeout(run, 1200);
+          new MutationObserver(() => {
+            if (!document.getElementById("__cove-force-dark")) ensureStyle();
+          }).observe(document.documentElement, { childList: true, subtree: true });
         })();
         """;
 

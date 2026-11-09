@@ -156,6 +156,8 @@ public partial class MainWindow : Window
             if (!_ready || AppearanceBox.SelectedItem is not ComboBoxItem item) return;
             _state.Appearance = item.Tag as string ?? "dark";
             Cove.Theme.ApplyAppearance(_state.Appearance);
+            WebEngine.ApplyPreferredColorScheme();
+            RefreshLocalPages();
             ScheduleSave();
         };
         AutocompleteCheck.IsCheckedChanged += (_, _) =>
@@ -186,7 +188,11 @@ public partial class MainWindow : Window
             if (!_ready) return;
             _state.ForceDarkPages = ForceDarkCheck.IsChecked == true;
             WebEngine.SetForceDarkPages(_state.ForceDarkPages);
-            Note(_state.ForceDarkPages ? "Force dark on for new page loads." : "Force dark off for new page loads.");
+            foreach (var open in AllTabs())
+            {
+                if (IsWeb(open.Url)) open.Page.Reload();
+            }
+            Note(_state.ForceDarkPages ? "Force dark is on." : "Force dark is off.");
             ScheduleSave();
         };
     }
@@ -224,6 +230,7 @@ public partial class MainWindow : Window
         BrandButton.Foreground = Cove.Theme.Accent;
         BuildAccentSwatches();
         UpdateChrome();
+        RefreshLocalPages();
         if (_ready) ScheduleSave();
         e.Handled = true;
     }
@@ -419,6 +426,13 @@ public partial class MainWindow : Window
                 var query = doc.RootElement.TryGetProperty("query", out var q) ? q.GetString() ?? "" : "";
                 if (IsCurrent(tab)) NavigateActive(query);
                 else tab.Page.Navigate(Resolve(query));
+                return;
+            }
+            if (kind == "suggest")
+            {
+                if (source is null || !source.Contains("cove.local", StringComparison.OrdinalIgnoreCase)) return;
+                var query = doc.RootElement.TryGetProperty("query", out var q) ? q.GetString() ?? "" : "";
+                ReplySuggestions(tab, query);
                 return;
             }
             if (kind != "login" || _private) return;
@@ -1308,14 +1322,31 @@ public partial class MainWindow : Window
         return prefix + tab.Title + " — Cove";
     }
 
-    string NewTabUrl() => "cove://cove.local/newtab.html?accent=" + Cove.Theme.AccentHex.TrimStart('#');
+    string ThemeQuery() => Cove.Theme.IsLight() ? "light" : "dark";
+
+    string NewTabUrl() =>
+        "cove://cove.local/newtab.html?accent=" + Cove.Theme.AccentHex.TrimStart('#') + "&theme=" + ThemeQuery();
+
+    string PasswordsUrl() =>
+        "cove://cove.local/passwords.html?accent=" + Cove.Theme.AccentHex.TrimStart('#') + "&theme=" + ThemeQuery();
+
+    void RefreshLocalPages()
+    {
+        foreach (var tab in AllTabs())
+        {
+            if (tab.Url.Contains("cove.local/newtab", StringComparison.OrdinalIgnoreCase))
+                tab.Page.Navigate(NewTabUrl());
+            else if (tab.Url.Contains("cove.local/passwords", StringComparison.OrdinalIgnoreCase))
+                tab.Page.Navigate(PasswordsUrl());
+        }
+    }
 
     static string Collapse(string url) => IsNewTab(url) ? "cove://newtab" : url;
 
     string Normalize(string url)
     {
         if (url.Contains("passwords", StringComparison.OrdinalIgnoreCase) && url.Contains("cove.local", StringComparison.OrdinalIgnoreCase))
-            return "cove://cove.local/passwords.html";
+            return PasswordsUrl();
         if (IsNewTab(url) || url.Contains("://cove.local/", StringComparison.OrdinalIgnoreCase)) return NewTabUrl();
         return url;
     }
@@ -1548,13 +1579,8 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    void RefreshSuggestions(string query)
+    List<SuggestRow> BuildSuggestions(string query, int limit = 8)
     {
-        if (!_state.AddressAutocomplete || _private || _videoFullscreen)
-        {
-            HideSuggestions();
-            return;
-        }
         query = query.Trim();
         var matches = new List<SuggestRow>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1562,6 +1588,7 @@ public partial class MainWindow : Window
         {
             if (string.IsNullOrWhiteSpace(url) || !seen.Add(url)) return;
             if (IsNewTab(url)) return;
+            if (url.Contains("cove.local", StringComparison.OrdinalIgnoreCase)) return;
             if (query.Length > 0 &&
                 !title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
                 !url.Contains(query, StringComparison.OrdinalIgnoreCase)) return;
@@ -1574,7 +1601,28 @@ public partial class MainWindow : Window
         }
         foreach (var mark in _state.Bookmarks) Add(mark.Title, mark.Url, "Bookmark");
         foreach (var entry in _state.History) Add(entry.Title, entry.Url, "History");
-        _suggestions = matches.Take(8).ToList();
+        return matches.Take(limit).ToList();
+    }
+
+    void ReplySuggestions(TabVm tab, string query)
+    {
+        if (!_state.AddressAutocomplete || _private)
+        {
+            tab.Page.PostJson(JsonSerializer.Serialize(new { kind = "suggest-results", items = Array.Empty<object>() }, WebJson));
+            return;
+        }
+        var items = BuildSuggestions(query).Select(row => new { title = row.Title, url = row.Url, kind = row.Kind });
+        tab.Page.PostJson(JsonSerializer.Serialize(new { kind = "suggest-results", items }, WebJson));
+    }
+
+    void RefreshSuggestions(string query)
+    {
+        if (!_state.AddressAutocomplete || _private || _videoFullscreen)
+        {
+            HideSuggestions();
+            return;
+        }
+        _suggestions = BuildSuggestions(query);
         if (_suggestions.Count == 0)
         {
             HideSuggestions();
@@ -1786,14 +1834,14 @@ public partial class MainWindow : Window
     async void Passwords_Click(object? sender, RoutedEventArgs e)
     {
         if (_current is null) return;
-        const string url = "cove://cove.local/passwords.html";
         var existing = _current.Tabs.FirstOrDefault(t => t.Url.Contains("cove.local/passwords", StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
             ShowTab(existing);
+            existing.Page.Navigate(PasswordsUrl());
             return;
         }
-        await CreateTabAsync(_current, url, select: true);
+        await CreateTabAsync(_current, PasswordsUrl(), select: true);
     }
 
     void HandleVault(TabVm tab, string kind, JsonElement root, string? source)

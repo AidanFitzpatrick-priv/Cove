@@ -1,42 +1,166 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
+  <meta name="color-scheme" content="dark light" />
   <title>New tab</title>
   <style>
-    :root { --accent: #ff5a36; }
-    html, body { height: 100%; margin: 0; background: #121316; color: #f2f0ec; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    :root {
+      --accent: #ff5a36;
+      --bg: #121316;
+      --ink: #f2f0ec;
+      --muted: #8d8a84;
+      --panel: #1c1e24;
+      --line: #2c2f36;
+      --hover: #24262c;
+      --go-ink: #1a0d09;
+    }
+    html[data-theme="light"] {
+      --bg: #f4f2ee;
+      --ink: #1c1a18;
+      --muted: #6e6b66;
+      --panel: #ffffff;
+      --line: #d0cbc2;
+      --hover: #ebe8e2;
+      --go-ink: #1a0d09;
+    }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     body { display: flex; align-items: center; justify-content: center; }
-    main { width: min(560px, calc(100% - 48px)); }
+    main { width: min(560px, calc(100% - 48px)); position: relative; }
     h1 { font-weight: 600; font-size: 32px; letter-spacing: -0.045em; margin: 0 0 18px; }
     h1 span { color: var(--accent); }
-    form { display: flex; background: #1c1e24; border: 1px solid #2c2f36; border-radius: 12px; overflow: hidden; }
+    .search {
+      position: relative;
+    }
+    form {
+      display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    }
     form:focus-within { border-color: var(--accent); }
     input { flex: 1; min-width: 0; background: transparent; border: 0; color: inherit; font: inherit; font-size: 15px; padding: 14px 16px; outline: none; }
-    button { background: var(--accent); color: #1a0d09; border: 0; padding: 0 18px; font-weight: 650; font: inherit; cursor: pointer; }
-    p { color: #8d8a84; font-size: 12px; margin: 14px 0 0; }
+    button.go { background: var(--accent); color: var(--go-ink); border: 0; padding: 0 18px; font-weight: 650; font: inherit; cursor: pointer; }
+    p.note { color: var(--muted); font-size: 12px; margin: 14px 0 0; }
+    #suggest {
+      display: none;
+      position: absolute; left: 0; right: 0; top: calc(100% + 8px);
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.28); overflow: hidden; z-index: 5;
+    }
+    #suggest.open { display: block; }
+    .item {
+      display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start;
+      width: 100%; text-align: left; border: 0; background: transparent; color: inherit;
+      padding: 10px 12px; cursor: pointer; font: inherit;
+    }
+    .item:hover, .item.active { background: var(--hover); }
+    .kind {
+      margin-top: 2px; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px;
+    }
+    .title { font-size: 13px; font-weight: 600; }
+    .url { font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-all; }
   </style>
 </head>
 <body>
   <main>
     <h1>Co<span>ve</span></h1>
-    <form id="f">
-      <input id="q" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false" />
-      <button type="submit">Go</button>
-    </form>
-    <p>Search stays on Google. Nothing here phones home.</p>
+    <div class="search">
+      <form id="f">
+        <input id="q" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false" />
+        <button class="go" type="submit">Go</button>
+      </form>
+      <div id="suggest" role="listbox" aria-label="Suggestions"></div>
+    </div>
+    <p class="note">Search stays on Google. Nothing here phones home.</p>
   </main>
   <script>
-    const accent = new URLSearchParams(location.search).get("accent");
+    const params = new URLSearchParams(location.search);
+    const accent = params.get("accent");
+    const theme = (params.get("theme") || "dark").toLowerCase() === "light" ? "light" : "dark";
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="color-scheme"]').content = theme;
     if (accent) document.documentElement.style.setProperty("--accent", "#" + accent.replace("#", ""));
+
     const q = document.getElementById("q");
+    const box = document.getElementById("suggest");
+    let items = [];
+    let active = -1;
+    let timer = 0;
+
+    const paint = () => {
+      box.replaceChildren();
+      if (!items.length) {
+        box.classList.remove("open");
+        active = -1;
+        return;
+      }
+      items.forEach((item, index) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "item" + (index === active ? " active" : "");
+        btn.innerHTML = `<span class="kind"></span><span><div class="title"></div><div class="url"></div></span>`;
+        btn.querySelector(".kind").textContent = item.kind || "Page";
+        btn.querySelector(".title").textContent = item.title || item.url;
+        btn.querySelector(".url").textContent = item.url || "";
+        btn.addEventListener("mousedown", (e) => e.preventDefault());
+        btn.addEventListener("click", () => go(item.url));
+        box.append(btn);
+      });
+      box.classList.add("open");
+    };
+
+    const go = (value) => {
+      const query = (value || q.value || "").trim();
+      if (!query || !window.chrome?.webview) return;
+      box.classList.remove("open");
+      chrome.webview.postMessage({ kind: "search", query });
+    };
+
+    const ask = () => {
+      if (!window.chrome?.webview) return;
+      chrome.webview.postMessage({ kind: "suggest", query: q.value.trim() });
+    };
+
     q.focus();
+    q.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(ask, 80);
+    });
+    q.addEventListener("focus", ask);
+    q.addEventListener("blur", () => setTimeout(() => box.classList.remove("open"), 120));
+    q.addEventListener("keydown", (e) => {
+      if (!items.length) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        active = Math.min(items.length - 1, active + 1);
+        paint();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        active = Math.max(0, active <= 0 ? 0 : active - 1);
+        paint();
+      } else if (e.key === "Escape") {
+        box.classList.remove("open");
+        active = -1;
+      } else if (e.key === "Enter" && active >= 0 && active < items.length) {
+        e.preventDefault();
+        go(items[active].url);
+      }
+    });
+
     document.getElementById("f").addEventListener("submit", (e) => {
       e.preventDefault();
-      const query = q.value.trim();
-      if (!query || !window.chrome?.webview) return;
-      chrome.webview.postMessage({ kind: "search", query });
+      if (active >= 0 && active < items.length) go(items[active].url);
+      else go(q.value);
     });
+
+    if (window.chrome?.webview) {
+      chrome.webview.addEventListener("message", (e) => {
+        const data = e.data || {};
+        if (data.kind !== "suggest-results") return;
+        items = Array.isArray(data.items) ? data.items : [];
+        active = -1;
+        paint();
+      });
+    }
   </script>
 </body>
 </html>
