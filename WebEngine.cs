@@ -80,6 +80,13 @@ static class WebEngine
         foreach (var page in Snapshot()) page.SetScript(_script);
     }
 
+    public static void SetForceDarkPages(bool enabled)
+    {
+        WebScripts.ForceDarkPages = enabled;
+        RebuildScript();
+        foreach (var page in Snapshot()) page.SetScript(_script);
+    }
+
     public static Task ApplyBlocking(bool enabled, IReadOnlyCollection<string> allow)
     {
         if (OperatingSystem.IsWindows()) return ApplyBlockingWindows(enabled, allow);
@@ -112,7 +119,7 @@ static class WebEngine
             }
         }
         ExtensionPacks = packs;
-        _script = WebScripts.Document + extra;
+        _script = WebScripts.BuildDocument(extra.ToString());
     }
 
     internal static List<PageSession> Snapshot()

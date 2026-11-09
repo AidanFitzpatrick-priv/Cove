@@ -9,15 +9,15 @@
         <Style Selector="Window">
             <Setter Property="FontFamily" Value="Inter, -apple-system, sans-serif"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
-            <Setter Property="Background" Value="#121316"/>
+            <Setter Property="Foreground" Value="{x:Static local:Theme.Ink}"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Shell}"/>
         </Style>
 
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#0E0F12"/>
-            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource Ink}"/>
-            <Setter Property="BorderBrush" Value="#2A2D34"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Field}"/>
+            <Setter Property="Foreground" Value="{x:Static local:Theme.Ink}"/>
+            <Setter Property="CaretBrush" Value="{x:Static local:Theme.Ink}"/>
+            <Setter Property="BorderBrush" Value="{x:Static local:Theme.Line}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -25,8 +25,8 @@
         </Style>
 
         <Style Selector="Button">
-            <Setter Property="Background" Value="#2A2D34"/>
-            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.ButtonFace}"/>
+            <Setter Property="Foreground" Value="{x:Static local:Theme.Ink}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="12,7"/>
             <Setter Property="CornerRadius" Value="7"/>
@@ -36,7 +36,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button:pointerover">
-            <Setter Property="Background" Value="#3A3D46"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Hover}"/>
         </Style>
         <Style Selector="Button:disabled">
             <Setter Property="Opacity" Value="0.38"/>
@@ -50,7 +50,7 @@
             <Setter Property="CornerRadius" Value="7"/>
         </Style>
         <Style Selector="Button.icon:pointerover">
-            <Setter Property="Background" Value="#2A2D34"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.ButtonFace}"/>
         </Style>
         <Style Selector="Button.rail">
             <Setter Property="Width" Value="36"/>
@@ -68,10 +68,10 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="ListBox.flat ListBoxItem:pointerover">
-            <Setter Property="Background" Value="#24262C"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Hover}"/>
         </Style>
         <Style Selector="ListBox.flat ListBoxItem:selected">
-            <Setter Property="Background" Value="#2E3138"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Selected}"/>
         </Style>
         <Style Selector="ListBox.tabs ListBoxItem">
             <Setter Property="Padding" Value="0"/>
@@ -82,10 +82,18 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style Selector="ListBox.tabs ListBoxItem:pointerover">
-            <Setter Property="Background" Value="#24262C"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Hover}"/>
         </Style>
         <Style Selector="ListBox.tabs ListBoxItem:selected">
-            <Setter Property="Background" Value="#2E3138"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Selected}"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{x:Static local:Theme.Ink}"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Foreground" Value="{x:Static local:Theme.Ink}"/>
+            <Setter Property="Background" Value="{x:Static local:Theme.Field}"/>
+            <Setter Property="BorderBrush" Value="{x:Static local:Theme.Line}"/>
         </Style>
 
         <Style Selector="ProgressBar">
@@ -97,6 +105,14 @@
     <Application.Resources>
         <SolidColorBrush x:Key="Ink" Color="#F2F0EC"/>
         <SolidColorBrush x:Key="Muted" Color="#8D8A84"/>
+        <SolidColorBrush x:Key="Shell" Color="#121316"/>
+        <SolidColorBrush x:Key="Panel" Color="#16181D"/>
+        <SolidColorBrush x:Key="Chrome" Color="#181A1F"/>
+        <SolidColorBrush x:Key="Field" Color="#0E0F12"/>
+        <SolidColorBrush x:Key="Line" Color="#2A2D34"/>
+        <SolidColorBrush x:Key="Hover" Color="#24262C"/>
+        <SolidColorBrush x:Key="Selected" Color="#2E3138"/>
+        <SolidColorBrush x:Key="ButtonFace" Color="#2A2D34"/>
         <StreamGeometry x:Key="IconBack">M15.41,7.41 L14,6 L8,12 L14,18 L15.41,16.59 L10.83,12 Z</StreamGeometry>
         <StreamGeometry x:Key="IconForward">M8.59,7.41 L10,6 L16,12 L10,18 L8.59,16.59 L13.17,12 Z</StreamGeometry>
         <StreamGeometry x:Key="IconReload">M17.65,6.35 C16.2,4.9 14.21,4 12,4 C7.58,4 4.01,7.58 4.01,12 C4.01,16.42 7.58,20 12,20 C15.73,20 18.84,17.45 19.73,14 L17.65,14 C16.83,16.33 14.61,18 12,18 C8.69,18 6,15.31 6,12 C6,8.69 8.69,6 12,6 C13.66,6 15.14,6.69 16.22,7.78 L13,11 L20,11 L20,4 L17.65,6.35 Z</StreamGeometry>

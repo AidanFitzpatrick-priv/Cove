@@ -1,6 +1,8 @@
 (() => {
   const header = document.querySelector(".site-header");
   const features = document.querySelectorAll(".feature-list li");
+  const suggestRows = document.querySelectorAll(".suggest-row");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const onScroll = () => {
     if (!header) return;
@@ -9,6 +11,15 @@
 
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
+
+  if (!reduceMotion && suggestRows.length > 1) {
+    let index = 0;
+    window.setInterval(() => {
+      suggestRows.forEach((row) => row.classList.remove("is-active"));
+      index = (index + 1) % suggestRows.length;
+      suggestRows[index].classList.add("is-active");
+    }, 2200);
+  }
 
   if (!("IntersectionObserver" in window)) {
     features.forEach((item) => item.classList.add("is-in"));
@@ -27,7 +38,7 @@
   );
 
   features.forEach((item, index) => {
-    item.style.transitionDelay = `${Math.min(index * 60, 360)}ms`;
+    item.style.transitionDelay = `${Math.min(index * 50, 400)}ms`;
     observer.observe(item);
   });
 })();

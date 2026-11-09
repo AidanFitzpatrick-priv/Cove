@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cove — Private browser for Mac and Windows</title>
-  <meta name="description" content="Cove is a small private browser for macOS and Windows. Data stays on this machine. No account. No sync." />
+  <meta name="description" content="Cove is a small private browser for macOS and Windows. WebKit on Mac, WebView2 on Windows. Data stays on this machine. No account. No sync." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -27,7 +27,7 @@
       <div class="hero-copy">
         <p class="brand">Cove</p>
         <h1>A private browser that stays on this computer.</h1>
-        <p class="lede">Uses WebKit on macOS and WebView2 on Windows. No account, no sync, no Chromium bundle shipping with the app.</p>
+        <p class="lede">WebKit on macOS, WebView2 on Windows. No account, no sync, no Chromium shipping with the app.</p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="#downloads">Get Cove</a>
           <a class="btn btn-ghost" href="#features">See features</a>
@@ -42,9 +42,17 @@
               <div class="tab"><span class="tab-dot muted"></span><span>Docs</span></div>
               <div class="tab"><span class="tab-dot muted"></span><span>Mail</span></div>
             </div>
-            <div class="browser-address">
-              <span class="lock"></span>
-              <span class="url">cove.local / private</span>
+            <div class="browser-toolbar">
+              <div class="browser-address is-suggesting">
+                <span class="lock"></span>
+                <span class="url typing">cove</span>
+                <span class="url-caret"></span>
+              </div>
+              <div class="suggest">
+                <div class="suggest-row is-active"><span>Cove passwords</span><span class="suggest-url">cove.local/passwords</span></div>
+                <div class="suggest-row"><span>Bookmarks · Cove docs</span><span class="suggest-url">docs.local/cove</span></div>
+                <div class="suggest-row"><span>History · cove.local</span><span class="suggest-url">cove.local</span></div>
+              </div>
             </div>
           </div>
           <div class="browser-body">
@@ -52,6 +60,9 @@
               <div class="side-block"></div>
               <div class="side-block short"></div>
               <div class="side-block"></div>
+              <div class="side-label">Settings</div>
+              <div class="side-chip">Dark</div>
+              <div class="side-chip soft">Accent</div>
               <div class="side-swatch"></div>
             </aside>
             <div class="browser-page">
@@ -75,12 +86,20 @@
 
       <ul class="feature-list">
         <li>
-          <h3>Tabs &amp; layout</h3>
-          <p>Horizontal tabs with the address bar underneath. A slim sidebar docks left, right, or bottom, and collapses to icons.</p>
+          <h3>Tabs &amp; autocomplete</h3>
+          <p>Horizontal tabs with the address bar underneath. Suggestions pull from bookmarks and history as you type.</p>
+        </li>
+        <li>
+          <h3>Sidebar layout</h3>
+          <p>A slim sidebar docks on the left, right, or bottom, and collapses to icons when you want more room for the page.</p>
         </li>
         <li>
           <h3>Workspaces</h3>
           <p>Separate workspaces that still share logins, each with its own color so you can tell them apart at a glance.</p>
+        </li>
+        <li>
+          <h3>Settings</h3>
+          <p>Dark, light, or match the system. Pick an accent, restore your last session, and toggle address suggestions or blocking.</p>
         </li>
         <li>
           <h3>Ad &amp; tracker blocking</h3>
@@ -92,7 +111,7 @@
         </li>
         <li>
           <h3>Password vault</h3>
-          <p>Passwords save only on this computer, locked with a Cove password, sign-in unlock, or Touch ID on Mac.</p>
+          <p>Passwords save only on this computer. Unlock with a Cove password, this computer’s sign-in, or Touch ID on Mac.</p>
         </li>
         <li>
           <h3>Memory aware</h3>
@@ -112,25 +131,25 @@
     <section id="downloads" class="section downloads">
       <div class="section-head">
         <h2>Downloads</h2>
-        <p>Cove is currently at version 0.1.0 for macOS and Windows.</p>
+        <p>Cove 0.1.0 runs on macOS and Windows from the same codebase.</p>
       </div>
 
       <div class="download-panel">
         <div class="download-main">
           <div class="download-meta">
             <p class="os">macOS &amp; Windows</p>
-            <p class="version">Cove 0.1.0 · .NET 10</p>
+            <p class="version">Cove 0.1.0 · .NET 10 · Avalonia</p>
           </div>
           <a class="btn btn-primary btn-lg" href="#run">Get Cove</a>
-          <p class="hint">Installer builds will publish here. For now, run Cove from the project source.</p>
+          <p class="hint">Installer builds will publish here. For now, run Cove from the project source on either platform.</p>
           <div class="platforms">
             <div class="platform is-ready">
               <span class="platform-name">macOS</span>
-              <span class="platform-status">Supported</span>
+              <span class="platform-status">WebKit</span>
             </div>
             <div class="platform is-ready">
               <span class="platform-name">Windows</span>
-              <span class="platform-status">Supported</span>
+              <span class="platform-status">WebView2</span>
             </div>
             <div class="platform">
               <span class="platform-name">Linux</span>
@@ -144,10 +163,11 @@
           <ul>
             <li>macOS 12.3+ or Windows 10+</li>
             <li><a href="https://dotnet.microsoft.com/download" rel="noopener">.NET 10 SDK</a></li>
-            <li>Xcode command line tools on Mac, or WebView2 Runtime on Windows</li>
+            <li>Xcode command line tools on Mac, or Edge WebView2 Runtime on Windows</li>
           </ul>
           <h3>Run from source</h3>
           <pre><code>dotnet run --project Cove.csproj</code></pre>
+          <p class="req-note">The first macOS build compiles <code>native/cove_webkit.m</code> into <code>libCoveWebKit.dylib</code>.</p>
         </div>
       </div>
     </section>

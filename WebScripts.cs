@@ -3,6 +3,38 @@ namespace Cove;
 static class WebScripts
 {
     public static string Document => Bridge + "\n" + Bootstrap;
+    public static bool ForceDarkPages { get; set; }
+
+    public static string BuildDocument(string? extensionExtra = null)
+    {
+        var text = Document;
+        if (ForceDarkPages) text += "\n" + ForceDark;
+        if (!string.IsNullOrEmpty(extensionExtra)) text += "\n" + extensionExtra;
+        return text;
+    }
+
+    public const string ForceDark = """
+        (() => {
+          if (window.__coveForceDark) return;
+          window.__coveForceDark = true;
+          const css = `
+            html { color-scheme: dark !important; }
+            html, :root { background-color: #121212 !important; }
+            html { filter: invert(1) hue-rotate(180deg) !important; }
+            img, picture, video, canvas, svg, embed, object, iframe,
+            [style*="background-image"] { filter: invert(1) hue-rotate(180deg) !important; }
+          `;
+          const inject = () => {
+            if (document.getElementById("__cove-force-dark")) return;
+            const style = document.createElement("style");
+            style.id = "__cove-force-dark";
+            style.textContent = css;
+            (document.documentElement || document.head || document.body).appendChild(style);
+          };
+          inject();
+          new MutationObserver(inject).observe(document.documentElement, { childList: true, subtree: true });
+        })();
+        """;
 
     public const string Bridge = """
         (() => {

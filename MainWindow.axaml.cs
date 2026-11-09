@@ -59,7 +59,6 @@ public partial class MainWindow : Window
     string? _pendingUser;
     string? _pendingPass;
     bool _suggestOpen;
-    bool _pickingSuggest;
     int _suggestIndex = -1;
     List<SuggestRow> _suggestions = [];
 
@@ -147,33 +146,16 @@ public partial class MainWindow : Window
         }
         if (AppearanceBox.SelectedItem is null && AppearanceBox.Items.Count > 0)
             AppearanceBox.SelectedIndex = 0;
-        AccentBox.Items.Clear();
-        foreach (var hex in Cove.Theme.Swatches)
-        {
-            var item = new ComboBoxItem { Content = hex, Tag = hex };
-            AccentBox.Items.Add(item);
-            if (string.Equals(hex, Cove.Theme.AccentHex, StringComparison.OrdinalIgnoreCase))
-                AccentBox.SelectedItem = item;
-        }
-        if (AccentBox.SelectedItem is null && AccentBox.Items.Count > 0) AccentBox.SelectedIndex = 0;
+        BuildAccentSwatches();
         AutocompleteCheck.IsChecked = _state.AddressAutocomplete;
         RestoreSessionCheck.IsChecked = _state.RestoreSession;
         AdBlockCheck.IsChecked = _state.AdBlockEnabled;
+        ForceDarkCheck.IsChecked = _state.ForceDarkPages;
         AppearanceBox.SelectionChanged += (_, _) =>
         {
             if (!_ready || AppearanceBox.SelectedItem is not ComboBoxItem item) return;
             _state.Appearance = item.Tag as string ?? "dark";
             Cove.Theme.ApplyAppearance(_state.Appearance);
-            ScheduleSave();
-        };
-        AccentBox.SelectionChanged += (_, _) =>
-        {
-            if (!_ready || AccentBox.SelectedItem is not ComboBoxItem item) return;
-            var hex = item.Tag as string ?? Cove.Theme.AccentHex;
-            Cove.Theme.Apply(hex);
-            _state.Accent = Cove.Theme.AccentHex;
-            BrandButton.Foreground = Cove.Theme.Accent;
-            UpdateChrome();
             ScheduleSave();
         };
         AutocompleteCheck.IsCheckedChanged += (_, _) =>
@@ -199,6 +181,51 @@ public partial class MainWindow : Window
             UpdateShield();
             ScheduleSave();
         };
+        ForceDarkCheck.IsCheckedChanged += (_, _) =>
+        {
+            if (!_ready) return;
+            _state.ForceDarkPages = ForceDarkCheck.IsChecked == true;
+            WebEngine.SetForceDarkPages(_state.ForceDarkPages);
+            Note(_state.ForceDarkPages ? "Force dark on for new page loads." : "Force dark off for new page loads.");
+            ScheduleSave();
+        };
+    }
+
+    void BuildAccentSwatches()
+    {
+        AccentHost.Children.Clear();
+        foreach (var hex in Cove.Theme.Swatches)
+        {
+            if (!Cove.Theme.TryParse(hex, out var color, out var normalized)) continue;
+            var selected = string.Equals(normalized, Cove.Theme.AccentHex, StringComparison.OrdinalIgnoreCase);
+            var swatch = new Border
+            {
+                Width = 22,
+                Height = 22,
+                CornerRadius = new CornerRadius(11),
+                Background = new SolidColorBrush(color),
+                BorderBrush = selected ? Cove.Theme.Ink : Cove.Theme.Line,
+                BorderThickness = new Thickness(selected ? 2 : 1),
+                Cursor = new Cursor(StandardCursorType.Hand),
+                Tag = normalized
+            };
+            ToolTip.SetTip(swatch, "Accent color");
+            swatch.PointerReleased += AccentSwatch_PointerReleased;
+            AccentHost.Children.Add(swatch);
+        }
+    }
+
+    void AccentSwatch_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton != MouseButton.Left) return;
+        if (sender is not Border { Tag: string hex }) return;
+        Cove.Theme.Apply(hex);
+        _state.Accent = Cove.Theme.AccentHex;
+        BrandButton.Foreground = Cove.Theme.Accent;
+        BuildAccentSwatches();
+        UpdateChrome();
+        if (_ready) ScheduleSave();
+        e.Handled = true;
     }
 
     protected override void OnOpened(EventArgs e)
@@ -215,6 +242,7 @@ public partial class MainWindow : Window
         {
             BootText.Text = "Starting Cove…";
             BootButton.IsVisible = false;
+            WebScripts.ForceDarkPages = _state.ForceDarkPages;
             await WebEngine.Start(_state.AdBlockEnabled, _state.AdBlockAllow, _state.ExtensionPaths);
             if (_closing) return;
             if (_private) _store = WebEngine.CreatePrivateStore();
@@ -1365,6 +1393,7 @@ public partial class MainWindow : Window
             Browser.RowDefinitions[0].Height = new GridLength(0);
             Browser.RowDefinitions[1].Height = new GridLength(0);
             Progress.IsVisible = false;
+            SuggestPopup.IsVisible = false;
             SaveBar.IsVisible = false;
             SidebarShell.IsVisible = false;
             SidebarSplitter.IsVisible = false;
@@ -1476,9 +1505,7 @@ public partial class MainWindow : Window
         {
             if (e.Key == Key.Down) _suggestIndex = Math.Min(_suggestions.Count - 1, _suggestIndex + 1);
             else _suggestIndex = Math.Max(0, _suggestIndex <= 0 ? 0 : _suggestIndex - 1);
-            _pickingSuggest = true;
             SuggestList.SelectedIndex = _suggestIndex;
-            _pickingSuggest = false;
             e.Handled = true;
             return;
         }
@@ -1499,7 +1526,11 @@ public partial class MainWindow : Window
     }
 
     void AddressBox_LostFocus(object? sender, RoutedEventArgs e) =>
-        Dispatcher.UIThread.Post(HideSuggestions, DispatcherPriority.Background);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (SuggestList.IsPointerOver || SuggestPopup.IsPointerOver) return;
+            HideSuggestions();
+        }, DispatcherPriority.Input);
 
     void AddressBox_TextChanged(object? sender, TextChangedEventArgs e)
     {
@@ -1507,35 +1538,39 @@ public partial class MainWindow : Window
         RefreshSuggestions(AddressBox.Text ?? "");
     }
 
-    void SuggestList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    void SuggestList_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (_pickingSuggest || SuggestList.SelectedItem is not SuggestRow row) return;
+        if (e.Source is not StyledElement source) return;
+        if (Ancestor<ListBoxItem>(source)?.DataContext is not SuggestRow row) return;
         NavigateActive(row.Url);
         HideSuggestions();
         ActiveTab()?.Page.Focus();
+        e.Handled = true;
     }
 
     void RefreshSuggestions(string query)
     {
-        if (!_state.AddressAutocomplete || _private)
+        if (!_state.AddressAutocomplete || _private || _videoFullscreen)
         {
             HideSuggestions();
             return;
         }
         query = query.Trim();
-        if (query.Length == 0)
-        {
-            HideSuggestions();
-            return;
-        }
         var matches = new List<SuggestRow>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         void Add(string title, string url, string kind)
         {
             if (string.IsNullOrWhiteSpace(url) || !seen.Add(url)) return;
-            if (!title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+            if (IsNewTab(url)) return;
+            if (query.Length > 0 &&
+                !title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
                 !url.Contains(query, StringComparison.OrdinalIgnoreCase)) return;
-            matches.Add(new SuggestRow { Title = string.IsNullOrWhiteSpace(title) ? url : title, Url = url, Kind = kind });
+            matches.Add(new SuggestRow
+            {
+                Title = string.IsNullOrWhiteSpace(title) ? url : title,
+                Url = url,
+                Kind = kind
+            });
         }
         foreach (var mark in _state.Bookmarks) Add(mark.Title, mark.Url, "Bookmark");
         foreach (var entry in _state.History) Add(entry.Title, entry.Url, "History");

@@ -105,6 +105,7 @@ sealed class AppState
     public string Appearance { get; set; } = "dark";
     public bool AddressAutocomplete { get; set; } = true;
     public bool RestoreSession { get; set; } = true;
+    public bool ForceDarkPages { get; set; }
     public int RamCapMb { get; set; } = 4096;
     public bool AdBlockEnabled { get; set; } = true;
     public bool SidebarOpen { get; set; } = true;
