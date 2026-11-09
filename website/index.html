@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cove — Private browser for this Mac</title>
-  <meta name="description" content="Cove is a small private browser for macOS. Data stays on this machine. No account. No sync." />
+  <title>Cove — Private browser for Mac and Windows</title>
+  <meta name="description" content="Cove is a small private browser for macOS and Windows. Data stays on this machine. No account. No sync." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -26,10 +26,10 @@
     <section class="hero">
       <div class="hero-copy">
         <p class="brand">Cove</p>
-        <h1>A private browser that stays on this Mac.</h1>
-        <p class="lede">Uses the WebKit already on macOS. No account, no sync, no Chromium bundle shipping with the app.</p>
+        <h1>A private browser that stays on this computer.</h1>
+        <p class="lede">Uses WebKit on macOS and WebView2 on Windows. No account, no sync, no Chromium bundle shipping with the app.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#downloads">Get Cove for Mac</a>
+          <a class="btn btn-primary" href="#downloads">Get Cove</a>
           <a class="btn btn-ghost" href="#features">See features</a>
         </div>
       </div>
@@ -70,7 +70,7 @@
     <section id="features" class="section features">
       <div class="section-head">
         <h2>Built for local privacy</h2>
-        <p>Everything Cove remembers lives in <code>~/Library/Application Support/Cove</code>. Sessions and the vault stay on this machine.</p>
+        <p>Everything Cove remembers lives in <code>~/Library/Application Support/Cove</code> on Mac or <code>%LOCALAPPDATA%\Cove</code> on Windows.</p>
       </div>
 
       <ul class="feature-list">
@@ -92,7 +92,7 @@
         </li>
         <li>
           <h3>Password vault</h3>
-          <p>Passwords save only on this Mac, locked with a Cove password or this Mac’s sign-in password.</p>
+          <p>Passwords save only on this computer, locked with a Cove password, sign-in unlock, or Touch ID on Mac.</p>
         </li>
         <li>
           <h3>Memory aware</h3>
@@ -112,25 +112,25 @@
     <section id="downloads" class="section downloads">
       <div class="section-head">
         <h2>Downloads</h2>
-        <p>Cove is currently at version 0.1.0. macOS is the supported platform.</p>
+        <p>Cove is currently at version 0.1.0 for macOS and Windows.</p>
       </div>
 
       <div class="download-panel">
         <div class="download-main">
           <div class="download-meta">
-            <p class="os">macOS</p>
+            <p class="os">macOS &amp; Windows</p>
             <p class="version">Cove 0.1.0 · .NET 10</p>
           </div>
           <a class="btn btn-primary btn-lg" href="#run">Get Cove</a>
-          <p class="hint">Installer builds will publish here. For now, run Cove from the project source on your Mac.</p>
+          <p class="hint">Installer builds will publish here. For now, run Cove from the project source.</p>
           <div class="platforms">
             <div class="platform is-ready">
               <span class="platform-name">macOS</span>
               <span class="platform-status">Supported</span>
             </div>
-            <div class="platform">
+            <div class="platform is-ready">
               <span class="platform-name">Windows</span>
-              <span class="platform-status">Not in this build</span>
+              <span class="platform-status">Supported</span>
             </div>
             <div class="platform">
               <span class="platform-name">Linux</span>
@@ -142,9 +142,9 @@
         <div class="download-reqs" id="run">
           <h3>Requirements</h3>
           <ul>
-            <li>macOS 12.3 or later</li>
+            <li>macOS 12.3+ or Windows 10+</li>
             <li><a href="https://dotnet.microsoft.com/download" rel="noopener">.NET 10 SDK</a></li>
-            <li>Xcode command line tools</li>
+            <li>Xcode command line tools on Mac, or WebView2 Runtime on Windows</li>
           </ul>
           <h3>Run from source</h3>
           <pre><code>dotnet run --project Cove.csproj</code></pre>
