@@ -18,6 +18,8 @@ public partial class App : Application
             Log(args.Exception.ToString());
             args.Handled = true;
         };
+        Theme.Apply(Store.Current.State.Accent);
+        Theme.ApplyAppearance(Store.Current.State.Appearance);
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;

@@ -122,6 +122,9 @@
                         <Button x:Name="RailLimiter" Classes="icon rail" ToolTip.Tip="Memory" Click="Rail_Click" Tag="limiter">
                             <PathIcon Data="{StaticResource IconMemory}" Width="14" Height="14"/>
                         </Button>
+                        <Button x:Name="RailSettings" Classes="icon rail" ToolTip.Tip="Settings" Click="Rail_Click" Tag="settings">
+                            <PathIcon Data="{StaticResource IconSettings}" Width="14" Height="14"/>
+                        </Button>
                     </StackPanel>
                     <Grid x:Name="PanelHost" Margin="0,4,6,6">
                         <Grid x:Name="PanelWorkspaces" RowDefinitions="32,*,Auto">
@@ -161,6 +164,23 @@
                             </StackPanel>
                             <ListBox x:Name="MemoryList" Grid.Row="1" Classes="flat" ItemTemplate="{StaticResource MemoryTemplate}"/>
                         </Grid>
+                        <ScrollViewer x:Name="PanelSettings" IsVisible="False">
+                            <StackPanel Margin="4,8,4,8" Spacing="10">
+                                <TextBlock Text="Settings" FontSize="13" FontWeight="SemiBold"/>
+                                <TextBlock Text="Appearance" Foreground="#8D8A84" FontSize="11"/>
+                                <ComboBox x:Name="AppearanceBox" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Tag="dark" Content="Dark"/>
+                                    <ComboBoxItem Tag="light" Content="Light"/>
+                                    <ComboBoxItem Tag="system" Content="Match system"/>
+                                </ComboBox>
+                                <TextBlock Text="Accent" Foreground="#8D8A84" FontSize="11" Margin="0,6,0,0"/>
+                                <ComboBox x:Name="AccentBox" HorizontalAlignment="Stretch"/>
+                                <CheckBox x:Name="AutocompleteCheck" Content="Suggest pages while typing in the address bar"/>
+                                <CheckBox x:Name="RestoreSessionCheck" Content="Reopen windows and tabs from last time"/>
+                                <CheckBox x:Name="AdBlockCheck" Content="Block ads and trackers"/>
+                                <TextBlock Margin="0,8,0,0" Foreground="#8D8A84" FontSize="11" TextWrapping="Wrap" Text="Passwords and browsing data stay on this computer."/>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
                 </Grid>
             </Border>
@@ -188,7 +208,7 @@
                     </StackPanel>
                     <Border Grid.Column="1" Margin="4,6" Background="#0E0F12" BorderBrush="#2A2D34" BorderThickness="1" CornerRadius="8">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBox x:Name="AddressBox" Background="Transparent" BorderThickness="0" Padding="12,0" VerticalContentAlignment="Center" KeyDown="AddressBox_KeyDown" GotFocus="AddressBox_GotFocus"/>
+                            <TextBox x:Name="AddressBox" Background="Transparent" BorderThickness="0" Padding="12,0" VerticalContentAlignment="Center" KeyDown="AddressBox_KeyDown" GotFocus="AddressBox_GotFocus" LostFocus="AddressBox_LostFocus" TextChanged="AddressBox_TextChanged"/>
                             <Button x:Name="StarButton" Grid.Column="1" Classes="icon" ToolTip.Tip="Bookmark this page" Click="Bookmark_Click">
                                 <PathIcon Data="{StaticResource IconStar}" Width="14" Height="14"/>
                             </Button>
@@ -227,6 +247,18 @@
                         <TextBlock x:Name="BootText" Text="Starting Cove…" Foreground="#8D8A84"/>
                         <Button x:Name="BootButton" Content="Try again" Margin="0,12,0,0" IsVisible="False" Click="BootButton_Click"/>
                     </StackPanel>
+                    <Border x:Name="SuggestPopup" IsVisible="False" VerticalAlignment="Top" HorizontalAlignment="Stretch" Margin="42,0,120,0" Background="#1C1E24" BorderBrush="#2A2D34" BorderThickness="1" CornerRadius="0,0,8,8" MaxHeight="280" ZIndex="20">
+                        <ListBox x:Name="SuggestList" Classes="flat" MaxHeight="280" SelectionChanged="SuggestList_SelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="2,4">
+                                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Url}" Foreground="#8D8A84" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
                 </Grid>
             </Grid>
         </Grid>

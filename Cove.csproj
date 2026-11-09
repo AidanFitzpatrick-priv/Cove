@@ -10,6 +10,8 @@
     <AssemblyName>Cove</AssemblyName>
     <RootNamespace>Cove</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- The WebView2 package also references WPF/WinForms assemblies that clash with WindowsBase off Windows. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +19,8 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.23" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,7 +33,7 @@
     <PropertyGroup>
       <WebKitShim>$(IntermediateOutputPath)libCoveWebKit.dylib</WebKitShim>
     </PropertyGroup>
-    <Exec Command="xcrun --sdk macosx clang -dynamiclib -fobjc-arc -mmacosx-version-min=12.3 -framework Foundation -framework AppKit -framework WebKit -framework Security -framework OpenDirectory -o &quot;$(WebKitShim)&quot; &quot;$(MSBuildProjectDirectory)/native/cove_webkit.m&quot;" />
+    <Exec Command="xcrun --sdk macosx clang -dynamiclib -fobjc-arc -mmacosx-version-min=12.3 -framework Foundation -framework AppKit -framework WebKit -framework Security -framework OpenDirectory -framework LocalAuthentication -o &quot;$(WebKitShim)&quot; &quot;$(MSBuildProjectDirectory)/native/cove_webkit.m&quot;" />
     <Copy SourceFiles="$(WebKitShim)" DestinationFolder="$(OutputPath)" />
   </Target>
 

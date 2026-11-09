@@ -9,19 +9,22 @@ static class WebScripts
           if (window.__coveBridge) return;
           window.__coveBridge = true;
           const listeners = [];
-          window.chrome = window.chrome || {};
-          window.chrome.webview = {
-            postMessage(msg) {
-              try { window.webkit.messageHandlers.cove.postMessage(JSON.stringify(msg)); } catch (e) {}
-            },
-            addEventListener(type, fn) {
-              if (type === "message" && typeof fn === "function") listeners.push(fn);
-            },
-            removeEventListener(type, fn) {
-              const index = listeners.indexOf(fn);
-              if (index >= 0) listeners.splice(index, 1);
-            }
-          };
+          // WebView2 supplies a native chrome.webview. WebKit gets a shim over its message handler.
+          if (!(window.chrome && window.chrome.webview)) {
+            window.chrome = window.chrome || {};
+            window.chrome.webview = {
+              postMessage(msg) {
+                try { window.webkit.messageHandlers.cove.postMessage(JSON.stringify(msg)); } catch (e) {}
+              },
+              addEventListener(type, fn) {
+                if (type === "message" && typeof fn === "function") listeners.push(fn);
+              },
+              removeEventListener(type, fn) {
+                const index = listeners.indexOf(fn);
+                if (index >= 0) listeners.splice(index, 1);
+              }
+            };
+          }
           window.__coveDeliver = (payload) => {
             let data = payload;
             if (typeof payload === "string") {

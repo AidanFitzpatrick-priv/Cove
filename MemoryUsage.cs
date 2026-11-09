@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Cove;
 
@@ -32,6 +34,54 @@ static class MemoryUsage
 
     static HashSet<int> Family(int root)
     {
+        var children = OperatingSystem.IsWindows() ? WindowsChildren() : PsChildren();
+        var ids = new HashSet<int> { root };
+        var stack = new Stack<int>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var id = stack.Pop();
+            if (!children.TryGetValue(id, out var kids)) continue;
+            foreach (var kid in kids)
+            {
+                if (ids.Add(kid)) stack.Push(kid);
+            }
+        }
+        return ids;
+    }
+
+    // Parent pid -> child pids from a Win32 process snapshot. WebView2 runs as child processes of Cove.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static Dictionary<int, List<int>> WindowsChildren()
+    {
+        var children = new Dictionary<int, List<int>>();
+        var snapshot = Win32.CreateToolhelp32Snapshot(Win32.TH32CS_SNAPPROCESS, 0);
+        if (snapshot == IntPtr.Zero || snapshot == new IntPtr(-1)) return children;
+        try
+        {
+            var entry = new Win32.PROCESSENTRY32W { dwSize = (uint)Marshal.SizeOf<Win32.PROCESSENTRY32W>(), szExeFile = "" };
+            if (!Win32.Process32FirstW(snapshot, ref entry)) return children;
+            do
+            {
+                var parent = (int)entry.th32ParentProcessID;
+                if (!children.TryGetValue(parent, out var list))
+                {
+                    list = [];
+                    children[parent] = list;
+                }
+                list.Add((int)entry.th32ProcessID);
+            }
+            while (Win32.Process32NextW(snapshot, ref entry));
+        }
+        finally
+        {
+            Win32.CloseHandle(snapshot);
+        }
+        return children;
+    }
+
+    static Dictionary<int, List<int>> PsChildren()
+    {
         var children = new Dictionary<int, List<int>>();
         using var process = Process.Start(new ProcessStartInfo
         {
@@ -55,18 +105,6 @@ static class MemoryUsage
             list.Add(pid);
         }
 
-        var ids = new HashSet<int> { root };
-        var stack = new Stack<int>();
-        stack.Push(root);
-        while (stack.Count > 0)
-        {
-            var id = stack.Pop();
-            if (!children.TryGetValue(id, out var kids)) continue;
-            foreach (var kid in kids)
-            {
-                if (ids.Add(kid)) stack.Push(kid);
-            }
-        }
-        return ids;
+        return children;
     }
 }

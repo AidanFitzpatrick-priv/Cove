@@ -2,6 +2,7 @@
 #import <WebKit/WebKit.h>
 #import <OpenDirectory/OpenDirectory.h>
 #import <Security/Security.h>
+#import <LocalAuthentication/LocalAuthentication.h>
 #import <objc/runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -624,4 +625,34 @@ void cove_secret_free(void *ptr, int length) {
     if (!ptr) return;
     if (length > 0) memset(ptr, 0, (size_t)length);
     free(ptr);
+}
+
+int cove_touch_id_available(void) {
+    __block int ok = 0;
+    OnMain(^{
+        @autoreleasepool {
+            LAContext *ctx = [LAContext new];
+            NSError *error = nil;
+            ok = [ctx canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error] ? 1 : 0;
+        }
+    });
+    return ok;
+}
+
+void cove_touch_id_evaluate(const char *reason, void *ctx, void (*cb)(void *, int)) {
+    if (!cb) return;
+    NSString *text = reason ? [NSString stringWithUTF8String:reason] : @"Unlock Cove";
+    OnMain(^{
+        @autoreleasepool {
+            LAContext *auth = [LAContext new];
+            NSError *error = nil;
+            if (![auth canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+                cb(ctx, 0);
+                return;
+            }
+            [auth evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:text reply:^(BOOL success, NSError *evalError) {
+                dispatch_async(dispatch_get_main_queue(), ^{ cb(ctx, success ? 1 : 0); });
+            }];
+        }
+    });
 }

@@ -58,6 +58,10 @@ public partial class MainWindow : Window
     string? _pendingHost;
     string? _pendingUser;
     string? _pendingPass;
+    bool _suggestOpen;
+    bool _pickingSuggest;
+    int _suggestIndex = -1;
+    List<SuggestRow> _suggestions = [];
 
     public MainWindow() : this(false) { }
 
@@ -107,6 +111,7 @@ public partial class MainWindow : Window
 
         if (_private) PrivateBadge.IsVisible = true;
         Cove.Theme.Apply(_state.Accent);
+        Cove.Theme.ApplyAppearance(_state.Appearance);
         RamSlider.Value = Math.Clamp(_state.RamCapMb, 1024, 16384);
         RamSlider.PropertyChanged += (_, e) =>
         {
@@ -114,6 +119,7 @@ public partial class MainWindow : Window
             _state.RamCapMb = (int)RamSlider.Value;
             ScheduleSave();
         };
+        WireSettings();
         _dock = _state.SidebarDock is "right" or "bottom" ? _state.SidebarDock : "left";
         if (_state.SidebarSize < 120) _state.SidebarSize = 188;
         SetSidebar(_state.SidebarOpen);
@@ -126,6 +132,72 @@ public partial class MainWindow : Window
         {
             App.Log("loaded");
             await BootAsync();
+        };
+    }
+
+    void WireSettings()
+    {
+        foreach (var item in AppearanceBox.Items.OfType<ComboBoxItem>())
+        {
+            if (string.Equals(item.Tag as string, _state.Appearance, StringComparison.OrdinalIgnoreCase))
+            {
+                AppearanceBox.SelectedItem = item;
+                break;
+            }
+        }
+        if (AppearanceBox.SelectedItem is null && AppearanceBox.Items.Count > 0)
+            AppearanceBox.SelectedIndex = 0;
+        AccentBox.Items.Clear();
+        foreach (var hex in Cove.Theme.Swatches)
+        {
+            var item = new ComboBoxItem { Content = hex, Tag = hex };
+            AccentBox.Items.Add(item);
+            if (string.Equals(hex, Cove.Theme.AccentHex, StringComparison.OrdinalIgnoreCase))
+                AccentBox.SelectedItem = item;
+        }
+        if (AccentBox.SelectedItem is null && AccentBox.Items.Count > 0) AccentBox.SelectedIndex = 0;
+        AutocompleteCheck.IsChecked = _state.AddressAutocomplete;
+        RestoreSessionCheck.IsChecked = _state.RestoreSession;
+        AdBlockCheck.IsChecked = _state.AdBlockEnabled;
+        AppearanceBox.SelectionChanged += (_, _) =>
+        {
+            if (!_ready || AppearanceBox.SelectedItem is not ComboBoxItem item) return;
+            _state.Appearance = item.Tag as string ?? "dark";
+            Cove.Theme.ApplyAppearance(_state.Appearance);
+            ScheduleSave();
+        };
+        AccentBox.SelectionChanged += (_, _) =>
+        {
+            if (!_ready || AccentBox.SelectedItem is not ComboBoxItem item) return;
+            var hex = item.Tag as string ?? Cove.Theme.AccentHex;
+            Cove.Theme.Apply(hex);
+            _state.Accent = Cove.Theme.AccentHex;
+            BrandButton.Foreground = Cove.Theme.Accent;
+            UpdateChrome();
+            ScheduleSave();
+        };
+        AutocompleteCheck.IsCheckedChanged += (_, _) =>
+        {
+            if (!_ready) return;
+            _state.AddressAutocomplete = AutocompleteCheck.IsChecked == true;
+            if (!_state.AddressAutocomplete) HideSuggestions();
+            ScheduleSave();
+        };
+        RestoreSessionCheck.IsCheckedChanged += (_, _) =>
+        {
+            if (!_ready) return;
+            _state.RestoreSession = RestoreSessionCheck.IsChecked == true;
+            ScheduleSave();
+        };
+        AdBlockCheck.IsCheckedChanged += async (_, _) =>
+        {
+            if (!_ready) return;
+            _state.AdBlockEnabled = AdBlockCheck.IsChecked == true;
+            await WebEngine.ApplyBlocking(_state.AdBlockEnabled, _state.AdBlockAllow);
+            var tab = ActiveTab();
+            if (tab is not null) await SetAdsFlagAsync(tab);
+            UpdateShield();
+            ScheduleSave();
         };
     }
 
@@ -145,8 +217,8 @@ public partial class MainWindow : Window
             BootButton.IsVisible = false;
             await WebEngine.Start(_state.AdBlockEnabled, _state.AdBlockAllow, _state.ExtensionPaths);
             if (_closing) return;
-            if (_private) _store = Native.PrivateStore();
-            if (_private || _state.Workspaces.Count == 0)
+            if (_private) _store = WebEngine.CreatePrivateStore();
+            if (_private || !_state.RestoreSession || _state.Workspaces.Count == 0)
             {
                 var fresh = new WorkspaceVm("Main", string.IsNullOrWhiteSpace(_state.Accent) ? Cove.Theme.AccentHex : _state.Accent);
                 _workspaces.Add(fresh);
@@ -1153,12 +1225,13 @@ public partial class MainWindow : Window
         PanelDownloads.IsVisible = name == "downloads";
         PanelExtensions.IsVisible = name == "extensions";
         PanelLimiter.IsVisible = name == "limiter";
+        PanelSettings.IsVisible = name == "settings";
         HighlightRail(name);
     }
 
     void HighlightRail(string name)
     {
-        foreach (var button in new[] { RailWorkspaces, RailBookmarks, RailHistory, RailDownloads, RailExtensions, RailLimiter })
+        foreach (var button in new[] { RailWorkspaces, RailBookmarks, RailHistory, RailDownloads, RailExtensions, RailLimiter, RailSettings })
         {
             var on = button.Tag as string == name && _sidebarOpen;
             button.Foreground = on ? Cove.Theme.Accent : Cove.Theme.Ink;
@@ -1172,6 +1245,7 @@ public partial class MainWindow : Window
         if (PanelDownloads.IsVisible) return "downloads";
         if (PanelExtensions.IsVisible) return "extensions";
         if (PanelLimiter.IsVisible) return "limiter";
+        if (PanelSettings.IsVisible) return "settings";
         return "workspaces";
     }
 
@@ -1393,13 +1467,97 @@ public partial class MainWindow : Window
 
     void AddressBox_KeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape)
+        {
+            HideSuggestions();
+            return;
+        }
+        if (_suggestOpen && _suggestions.Count > 0 && e.Key is Key.Down or Key.Up)
+        {
+            if (e.Key == Key.Down) _suggestIndex = Math.Min(_suggestions.Count - 1, _suggestIndex + 1);
+            else _suggestIndex = Math.Max(0, _suggestIndex <= 0 ? 0 : _suggestIndex - 1);
+            _pickingSuggest = true;
+            SuggestList.SelectedIndex = _suggestIndex;
+            _pickingSuggest = false;
+            e.Handled = true;
+            return;
+        }
         if (e.Key != Key.Enter) return;
-        NavigateActive(AddressBox.Text ?? "");
+        if (_suggestOpen && _suggestIndex >= 0 && _suggestIndex < _suggestions.Count)
+            NavigateActive(_suggestions[_suggestIndex].Url);
+        else
+            NavigateActive(AddressBox.Text ?? "");
+        HideSuggestions();
         ActiveTab()?.Page.Focus();
         e.Handled = true;
     }
 
-    void AddressBox_GotFocus(object? sender, GotFocusEventArgs e) => AddressBox.SelectAll();
+    void AddressBox_GotFocus(object? sender, GotFocusEventArgs e)
+    {
+        AddressBox.SelectAll();
+        RefreshSuggestions(AddressBox.Text ?? "");
+    }
+
+    void AddressBox_LostFocus(object? sender, RoutedEventArgs e) =>
+        Dispatcher.UIThread.Post(HideSuggestions, DispatcherPriority.Background);
+
+    void AddressBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (!AddressBox.IsFocused) return;
+        RefreshSuggestions(AddressBox.Text ?? "");
+    }
+
+    void SuggestList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_pickingSuggest || SuggestList.SelectedItem is not SuggestRow row) return;
+        NavigateActive(row.Url);
+        HideSuggestions();
+        ActiveTab()?.Page.Focus();
+    }
+
+    void RefreshSuggestions(string query)
+    {
+        if (!_state.AddressAutocomplete || _private)
+        {
+            HideSuggestions();
+            return;
+        }
+        query = query.Trim();
+        if (query.Length == 0)
+        {
+            HideSuggestions();
+            return;
+        }
+        var matches = new List<SuggestRow>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(string title, string url, string kind)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !seen.Add(url)) return;
+            if (!title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                !url.Contains(query, StringComparison.OrdinalIgnoreCase)) return;
+            matches.Add(new SuggestRow { Title = string.IsNullOrWhiteSpace(title) ? url : title, Url = url, Kind = kind });
+        }
+        foreach (var mark in _state.Bookmarks) Add(mark.Title, mark.Url, "Bookmark");
+        foreach (var entry in _state.History) Add(entry.Title, entry.Url, "History");
+        _suggestions = matches.Take(8).ToList();
+        if (_suggestions.Count == 0)
+        {
+            HideSuggestions();
+            return;
+        }
+        _suggestIndex = -1;
+        SuggestList.ItemsSource = _suggestions;
+        SuggestPopup.IsVisible = true;
+        _suggestOpen = true;
+    }
+
+    void HideSuggestions()
+    {
+        _suggestOpen = false;
+        _suggestIndex = -1;
+        SuggestPopup.IsVisible = false;
+        SuggestList.SelectedItem = null;
+    }
 
     void WorkspaceList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -1485,7 +1643,7 @@ public partial class MainWindow : Window
 
     async void ClearHistory_Click(object? sender, RoutedEventArgs e)
     {
-        if (!await Prompts.Confirm(this, "Clear history", "Remove every page from history on this Mac?")) return;
+        if (!await Prompts.Confirm(this, "Clear history", "Remove every page from history on this computer?")) return;
         _state.History.Clear();
         RefreshHistory();
         Store.Current.Save();
@@ -1498,6 +1656,16 @@ public partial class MainWindow : Window
         if (!File.Exists(item.Path))
         {
             Note("That file is no longer there.");
+            return;
+        }
+        if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                ArgumentList = { "/select,", item.Path },
+                UseShellExecute = true
+            });
             return;
         }
         Process.Start(new ProcessStartInfo
@@ -1577,7 +1745,7 @@ public partial class MainWindow : Window
             if (open.Url.Contains("cove.local/passwords", StringComparison.OrdinalIgnoreCase))
                 SendVault(open, null);
         }
-        Note("Password saved on this Mac.");
+        Note(OperatingSystem.IsMacOS() ? "Password saved on this Mac." : "Password saved on this PC.");
     }
 
     async void Passwords_Click(object? sender, RoutedEventArgs e)
@@ -1596,16 +1764,29 @@ public partial class MainWindow : Window
     void HandleVault(TabVm tab, string kind, JsonElement root, string? source)
     {
         if (source is null || !source.Contains("cove.local/passwords", StringComparison.OrdinalIgnoreCase)) return;
+        _ = HandleVaultAsync(tab, kind, root);
+    }
+
+    async Task HandleVaultAsync(TabVm tab, string kind, JsonElement root)
+    {
         string? error = null;
         var password = root.TryGetProperty("password", out var passEl) ? passEl.GetString() ?? "" : "";
         var mode = root.TryGetProperty("mode", out var modeEl) ? modeEl.GetString() : "cove";
         var login = mode is "windows" or "mac" or "login";
+        var machine = OperatingSystem.IsMacOS() ? "Mac" : "PC";
         if (kind == "vault-setup")
         {
-            if (_vault.Exists) error = "A vault already exists on this Mac.";
+            if (_vault.Exists) error = $"A vault already exists on this {machine}.";
             else if (login)
             {
-                if (!MacSignIn.Check(password)) error = "That isn't this Mac's sign-in password. Use a Cove password instead.";
+                if (OperatingSystem.IsWindows())
+                {
+                    _vault.CreateForWindows();
+                }
+                else if (!MacSignIn.Check(password))
+                {
+                    error = "That isn't this Mac's sign-in password. Use a Cove password instead.";
+                }
                 else _vault.CreateForWindows();
             }
             else if (password.Length < 4) error = "Use at least 4 characters.";
@@ -1613,12 +1794,22 @@ public partial class MainWindow : Window
         }
         else if (kind == "vault-unlock")
         {
-            var ok = login
-                ? MacSignIn.Check(password) && _vault.UnlockWithWindows()
-                : _vault.Unlock(password);
-            if (!ok) error = login
-                ? "Couldn't unlock with this Mac's password."
-                : "That password didn't open the vault.";
+            if (mode == "touchid")
+            {
+                var (ok, fail) = await _vault.UnlockWithTouchIdAsync();
+                if (!ok) error = fail;
+            }
+            else if (login)
+            {
+                var ok = OperatingSystem.IsWindows()
+                    ? _vault.UnlockWithWindows()
+                    : MacSignIn.Check(password) && _vault.UnlockWithWindows();
+                if (!ok) error = $"Couldn't unlock with this {machine}'s sign-in.";
+            }
+            else if (!_vault.Unlock(password))
+            {
+                error = "That password didn't open the vault.";
+            }
         }
         else if (kind == "vault-lock")
         {
@@ -1632,11 +1823,15 @@ public partial class MainWindow : Window
         else if (kind == "vault-windows")
         {
             if (!_vault.IsUnlocked) error = "Unlock the vault first.";
+            else if (OperatingSystem.IsWindows())
+            {
+                _vault.EnableWindowsUnlock();
+            }
             else if (!MacSignIn.Check(password)) error = "That isn't this Mac's sign-in password.";
             else _vault.EnableWindowsUnlock();
         }
         SendVault(tab, error);
-        if (kind is "vault-lock" or "vault-delete")
+        if (kind is "vault-lock" or "vault-delete" or "vault-unlock" or "vault-setup" or "vault-windows")
         {
             foreach (var other in AllTabs())
             {
@@ -1654,10 +1849,12 @@ public partial class MainWindow : Window
             Exists = _vault.Exists,
             Unlocked = _vault.IsUnlocked,
             Windows = _vault.HasWindowsUnlock,
+            TouchId = _vault.HasTouchId,
+            Platform = OperatingSystem.IsMacOS() ? "mac" : "windows",
             Error = error,
             Entries = _vault.IsUnlocked ? _vault.Entries.ToList() : null
         };
-        tab.Page.Run("window.__coveDeliver(" + JsonSerializer.Serialize(JsonSerializer.Serialize(message, WebJson)) + ")");
+        tab.Page.PostJson(JsonSerializer.Serialize(message, WebJson));
     }
 
     static readonly JsonSerializerOptions WebJson = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -1713,7 +1910,7 @@ public partial class MainWindow : Window
         WebSurface.Shutdown();
         if (_store != IntPtr.Zero)
         {
-            Native.Release(_store);
+            WebEngine.ReleaseStore(_store);
             _store = IntPtr.Zero;
         }
     }
@@ -1744,7 +1941,16 @@ public partial class MainWindow : Window
         public bool Exists { get; init; }
         public bool Unlocked { get; init; }
         public bool Windows { get; init; }
+        public bool TouchId { get; init; }
+        public string Platform { get; init; } = "mac";
         public string? Error { get; init; }
         public List<VaultEntry>? Entries { get; init; }
+    }
+
+    sealed class SuggestRow
+    {
+        public required string Title { get; init; }
+        public required string Url { get; init; }
+        public required string Kind { get; init; }
     }
 }

@@ -102,6 +102,9 @@ sealed class DownloadVm : NotifyObject
 sealed class AppState
 {
     public string Accent { get; set; } = "#FF5A36";
+    public string Appearance { get; set; } = "dark";
+    public bool AddressAutocomplete { get; set; } = true;
+    public bool RestoreSession { get; set; } = true;
     public int RamCapMb { get; set; } = 4096;
     public bool AdBlockEnabled { get; set; } = true;
     public bool SidebarOpen { get; set; } = true;

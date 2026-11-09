@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Media;
+using Avalonia.Styling;
 
 namespace Cove;
 
@@ -8,6 +10,7 @@ static class Theme
     public static readonly SolidColorBrush Ink = new(Color.FromRgb(0xF2, 0xF0, 0xEC));
     public static readonly SolidColorBrush Muted = new(Color.FromRgb(0x8D, 0x8A, 0x84));
     public static string AccentHex { get; private set; } = "#FF5A36";
+    public static string Appearance { get; private set; } = "dark";
 
     public static readonly string[] Swatches =
     [
@@ -19,6 +22,28 @@ static class Theme
         if (!TryParse(hex, out var color, out var normalized)) return;
         AccentHex = normalized;
         Accent.Color = color;
+    }
+
+    public static void ApplyAppearance(string? mode)
+    {
+        Appearance = mode is "light" or "system" ? mode : "dark";
+        if (Application.Current is null) return;
+        Application.Current.RequestedThemeVariant = Appearance switch
+        {
+            "light" => ThemeVariant.Light,
+            "system" => ThemeVariant.Default,
+            _ => ThemeVariant.Dark
+        };
+        if (Appearance == "light")
+        {
+            Ink.Color = Color.FromRgb(0x1C, 0x1A, 0x18);
+            Muted.Color = Color.FromRgb(0x6E, 0x6B, 0x66);
+        }
+        else
+        {
+            Ink.Color = Color.FromRgb(0xF2, 0xF0, 0xEC);
+            Muted.Color = Color.FromRgb(0x8D, 0x8A, 0x84);
+        }
     }
 
     public static bool TryParse(string? hex, out Color color, out string normalized)
