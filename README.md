@@ -8,8 +8,8 @@
 
 <br/>
 
-[![macOS](https://img.shields.io/badge/macOS-supported-FF5A36?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac)
-[![Windows](https://img.shields.io/badge/Windows-supported-FF5A36?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac)
+[![macOS](https://img.shields.io/badge/macOS-supported-FF5A36?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/dev)
+[![Windows](https://img.shields.io/badge/Windows-supported-FF5A36?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AidanFitzpatrick-priv/Cove/tree/dev)
 [![Linux](https://img.shields.io/badge/Linux-planned-2A2D34?style=for-the-badge&logo=linux&logoColor=white)](#roadmap)
 [![Mobile](https://img.shields.io/badge/Mobile-planned-2A2D34?style=for-the-badge)](#roadmap)
 
@@ -39,7 +39,7 @@ A small private browser. Cove uses the engine already on the computer, and keeps
 
 ## Features
 
-The current app is the [`mac` branch](https://github.com/AidanFitzpatrick-priv/Cove/tree/mac). It runs on macOS and Windows. `master` is the first Windows-only version.
+The current app is the [`dev` branch](https://github.com/AidanFitzpatrick-priv/Cove/tree/dev). It runs on macOS and Windows. `master` is the first Windows-only version.
 
 <table>
 <tr>
@@ -138,11 +138,11 @@ On a Mac, a vault unlocked with sign-in or Touch ID keeps its key in the login k
 ## Run
 
 ```text
-cove@mac      ~/Cove   mac branch     WebKit
-cove@windows  ~/Cove   mac branch     WebView2
+cove@mac      ~/Cove   dev branch     WebKit
+cove@windows  ~/Cove   dev branch     WebView2
 ```
 
-**macOS and Windows** (`mac` branch):
+**macOS and Windows** (`dev` branch):
 
 ```bash
 dotnet run --project Cove.csproj
